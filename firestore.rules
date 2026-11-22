@@ -67,7 +67,7 @@ service cloud.firestore {
         starter is map &&
         starter.keys().hasAll(['digimonId', 'digimonName', 'element', 'chosenAt']) &&
         starter.keys().hasOnly(['digimonId', 'digimonName', 'element', 'chosenAt']) &&
-        starter.digimonId in ['agumon', 'gaomon', 'lalamon'] &&
+        starter.digimonId in ['agumon', 'gaomon', 'lalamon', 'guilmon'] &&
         starter.digimonName is string && starter.digimonName.size() >= 1 && starter.digimonName.size() <= 32 &&
         starter.element in ['Fogo', 'Velocidade', 'Natureza'] &&
         starter.chosenAt is string && starter.chosenAt.size() >= 10 && starter.chosenAt.size() <= 40
@@ -194,7 +194,8 @@ service cloud.firestore {
         data.digimonFormId in [
           'agumon', 'geogreymon', 'rizegreymon', 'shinegreymon',
           'gaomon', 'gaogamon', 'machgaogamon', 'miragegaogamon',
-          'lalamon', 'sunflowmon', 'lilamon', 'rosemon'
+          'lalamon', 'sunflowmon', 'lilamon', 'rosemon',
+          'guilmon', 'growlmon', 'megalogrowlmon', 'dukemon'
         ] &&
         data.digimonLevel is number && data.digimonLevel >= 1 && data.digimonLevel <= 200 &&
         data.mapId in ['dats-center', 'hunting-plains', 'data-forest'] &&

@@ -82,6 +82,7 @@ const STARTER_LINE_META: ReadonlyArray<{
   { id: 'agumon', label: 'Linha Fogo (Agumon)', dotClass: 'bg-amber-400' },
   { id: 'gaomon', label: 'Linha Velocidade (Gaomon)', dotClass: 'bg-sky-400' },
   { id: 'lalamon', label: 'Linha Natureza (Lalamon)', dotClass: 'bg-emerald-400' },
+  { id: 'guilmon', label: 'Linha Vírus (Guilmon)', dotClass: 'bg-rose-500' },
 ];
 
 export function AdminTestModal({
@@ -287,12 +288,12 @@ export function AdminTestModal({
                 </div>
               </div>
 
-              {/* All 12 Playable Digimons across all 3 lines */}
+              {/* All 16 Playable Digimons across all 4 lines */}
               <div className="rounded-xl border border-cyan-400/35 bg-[#041232] p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-cyan-200">
                     <Sparkles className="h-4 w-4 text-amber-300" />
-                    <span>Puxar Qualquer Digimon (12 Formas)</span>
+                    <span>Puxar Qualquer Digimon (16 Formas)</span>
                   </span>
                   <span className="text-[10px] font-semibold text-slate-300">
                     Usa {activeQuality.label}

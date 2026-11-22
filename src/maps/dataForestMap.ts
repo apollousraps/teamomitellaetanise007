@@ -8,6 +8,10 @@ import type {
   HuntingHabitatPackSpec,
 } from './huntingFieldMap';
 import { KUWAGAMON_BOSS_ID, KUWAGAMON_MAX_HP } from '../services/worldBossService';
+import {
+  applyContrastAdaptiveSharpen,
+  MAP_HIDPI_SCALE,
+} from '../utils/canvasSharpen';
 
 export const DATA_FOREST_MAP_ID = 'data-forest' as const;
 
@@ -599,31 +603,40 @@ function paintDataForestStaticEnhancements(ctx: CanvasRenderingContext2D): void 
 }
 
 export function buildDataForestStaticLayer(): HTMLCanvasElement {
+  const pixelW = Math.round(DATA_FOREST_WORLD_W * MAP_HIDPI_SCALE);
+  const pixelH = Math.round(DATA_FOREST_WORLD_H * MAP_HIDPI_SCALE);
   const canvas = document.createElement('canvas');
-  canvas.width = DATA_FOREST_WORLD_W;
-  canvas.height = DATA_FOREST_WORLD_H;
+  canvas.width = pixelW;
+  canvas.height = pixelH;
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
-  const fallback = ctx.createLinearGradient(0, 0, 0, DATA_FOREST_WORLD_H);
+  const fallback = ctx.createLinearGradient(0, 0, 0, pixelH);
   fallback.addColorStop(0, '#0ea5e9');
   fallback.addColorStop(0.45, '#15803d');
   fallback.addColorStop(1, '#064e3b');
   ctx.fillStyle = fallback;
-  ctx.fillRect(0, 0, DATA_FOREST_WORLD_W, DATA_FOREST_WORLD_H);
+  ctx.fillRect(0, 0, pixelW, pixelH);
 
   const img = new Image();
   img.decoding = 'async';
   img.src = DATA_FOREST_IMAGE_URL;
   img.onload = () => {
-    ctx.clearRect(0, 0, DATA_FOREST_WORLD_W, DATA_FOREST_WORLD_H);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pixelW, pixelH);
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.filter = 'contrast(1.06) saturate(1.12) brightness(1.02)';
-    ctx.drawImage(img, 0, 0, DATA_FOREST_WORLD_W, DATA_FOREST_WORLD_H);
+    ctx.drawImage(img, 0, 0, pixelW, pixelH);
     ctx.restore();
+
+    applyContrastAdaptiveSharpen(ctx, pixelW, pixelH, 1.08);
+
+    ctx.save();
+    ctx.scale(MAP_HIDPI_SCALE, MAP_HIDPI_SCALE);
     paintDataForestStaticEnhancements(ctx);
+    ctx.restore();
   };
 
   return canvas;

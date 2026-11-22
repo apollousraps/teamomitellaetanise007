@@ -184,7 +184,12 @@ function sanitizeStarterDigimonForCloud(
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const obj = raw as Record<string, unknown>;
   const rawId = String(obj.digimonId ?? '');
-  if (rawId !== 'agumon' && rawId !== 'gaomon' && rawId !== 'lalamon') {
+  if (
+    rawId !== 'agumon' &&
+    rawId !== 'gaomon' &&
+    rawId !== 'lalamon' &&
+    rawId !== 'guilmon'
+  ) {
     return null;
   }
   const digimonId: StarterDigimonId = rawId;
@@ -192,6 +197,7 @@ function sanitizeStarterDigimonForCloud(
     agumon: 'Fogo',
     gaomon: 'Velocidade',
     lalamon: 'Natureza',
+    guilmon: 'Fogo',
   };
   const rawEl = String(obj.element ?? '');
   const element: StarterDigimonElement =

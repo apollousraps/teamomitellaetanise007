@@ -29,15 +29,6 @@ interface InventoryHudWindowProps {
   onDiscardItem: (item: InventoryItem) => void;
 }
 
-const TABS: ReadonlyArray<{ id: InventoryCategory; label: string }> = [
-  { id: 'all', label: 'Todos' },
-  { id: 'data', label: 'DATA' },
-  { id: 'digiegg', label: 'DigiEggs' },
-  { id: 'other', label: 'Outros Mat.' },
-  { id: 'consumable', label: 'Consumíveis' },
-  { id: 'equip', label: 'Equip.' },
-] as const;
-
 const CATEGORY_LABELS: Record<Exclude<InventoryCategory, 'all'>, string> = {
   data: 'DATA',
   digiegg: 'DigiEgg',
@@ -76,7 +67,6 @@ export function InventoryHudWindow({
   onEquipItem,
   onDiscardItem,
 }: InventoryHudWindowProps) {
-  const [activeTab, setActiveTab] = useState<InventoryCategory>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const enrichedItems = useMemo(
@@ -86,14 +76,11 @@ export function InventoryHudWindow({
 
   if (!open) return null;
 
-  const filteredItems = enrichedItems.filter((item) =>
-    activeTab === 'all' ? true : item.category === activeTab
-  );
   const selectedItem =
-    filteredItems.find((i) => i.id === selectedId) ?? filteredItems[0] ?? null;
+    enrichedItems.find((i) => i.id === selectedId) ?? enrichedItems[0] ?? null;
 
   const slots = Array.from({ length: INVENTORY_MAX_SLOTS }, (_, idx) => {
-    return filteredItems[idx] ?? null;
+    return enrichedItems[idx] ?? null;
   });
 
   const selectedRarity = selectedItem
@@ -141,38 +128,8 @@ export function InventoryHudWindow({
         </button>
       </div>
 
-      {/* Organized Category Filter Tabs (DATA, DigiEggs, Outros Materiais, Consumíveis, Equip.) */}
-      <div className="grid grid-cols-3 gap-1 px-2 pt-2">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.id;
-          const count =
-            tab.id === 'all'
-              ? enrichedItems.length
-              : enrichedItems.filter((i) => i.category === tab.id).length;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-1 rounded-md border px-1.5 py-1 text-[9.5px] font-extrabold transition-all ${
-                active
-                  ? 'border-[#8befff] bg-gradient-to-b from-[#2eb8ff] to-[#0b68e6] text-white shadow-[0_0_8px_rgba(56,232,255,0.5)]'
-                  : 'border-cyan-400/50 bg-gradient-to-b from-[#0b42a3] to-[#05205c] text-cyan-100/90 hover:text-white'
-              }`}
-            >
-              <span className="truncate">{tab.label}</span>
-              {count > 0 && (
-                <span className="rounded bg-[#020a24]/65 px-1 text-[8px] font-black tabular-nums text-cyan-200">
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 36-Slot Grid (6 columns, clean scrollable body for compact height) */}
-      <div className="grid max-h-[192px] grid-cols-6 gap-1.5 overflow-y-auto p-2.5">
+      {/* Unified 48-Slot Grid (6 columns x 8 rows, scrollable compact body) */}
+      <div className="grid max-h-[224px] grid-cols-6 gap-1.5 overflow-y-auto p-2.5">
         {slots.map((item, idx) => {
           const isSelected = item && selectedItem?.id === item.id;
           const rarityMeta = item ? ITEM_RARITY_META[item.rarity ?? 'comum'] : null;
@@ -371,7 +328,7 @@ export function InventoryHudWindow({
         </div>
       ) : (
         <div className="dmo-well mx-2.5 mb-2 rounded-lg px-3 py-2 text-center text-[10px] font-semibold text-cyan-200/75">
-          Nenhum item nesta categoria. Derrote Digimons para obter DATA, DigiEggs e consumíveis.
+          Inventário vazio. Derrote Digimons ou explore o mapa para obter itens.
         </div>
       )}
 

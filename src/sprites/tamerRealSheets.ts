@@ -4,12 +4,16 @@ export const TAMER_CELL_W = 144;
 export const TAMER_CELL_H = 224;
 export const TAMER_FOOT_PAD = 10;
 export const TAMER_FRAME_COUNT = 4;
+export const TAMER_FRAME_WRAP = 2520; // LCM(4, 6, 7, 8, 9) so variable-length sheets loop seamlessly
 
 export type CardinalDirection = 'N' | 'S' | 'E' | 'W';
 export type TamerMovementState = 'idle' | 'walk';
 
 export type TamerMovementSheetKey =
   | 'idle'
+  | 'idle_side_right'
+  | 'idle_side_left'
+  | 'idle_back'
   | 'walk_front'
   | 'walk_side_right'
   | 'walk_side_left'
@@ -25,11 +29,16 @@ export interface TamerMovementSheetEntry {
 
 const SHEET_KEYS: readonly TamerMovementSheetKey[] = [
   'idle',
+  'idle_side_right',
+  'idle_side_left',
+  'idle_back',
   'walk_front',
   'walk_side_right',
   'walk_side_left',
   'walk_back',
 ] as const;
+
+const SPRITE_VERSION_QUERY = '?v=hd2';
 
 function buildManifest(
   tamerId: TamerId
@@ -38,8 +47,8 @@ function buildManifest(
   for (const key of SHEET_KEYS) {
     manifest[key] = {
       key,
-      url: `/assets/sprites/tamers/${tamerId}/${key}.png`,
-      frameCount: TAMER_FRAME_COUNT,
+      url: `/assets/sprites/tamers/${tamerId}/${key}.png${SPRITE_VERSION_QUERY}`,
+      frameCount: key.startsWith('idle_') ? 1 : TAMER_FRAME_COUNT,
       cellWidth: TAMER_CELL_W,
       cellHeight: TAMER_CELL_H,
     };
@@ -94,7 +103,21 @@ function resolveSheetKey(
   state: TamerMovementState,
   direction: CardinalDirection
 ): TamerMovementSheetKey {
-  if (state === 'idle' && direction === 'S') return 'idle';
+  if (state === 'idle') {
+    if (direction === 'S') return 'idle';
+    if (direction === 'E') return 'idle_side_right';
+    if (direction === 'W') return 'idle_side_left';
+    return 'idle_back';
+  }
+  if (direction === 'S') return 'walk_front';
+  if (direction === 'E') return 'walk_side_right';
+  if (direction === 'W') return 'walk_side_left';
+  return 'walk_back';
+}
+
+function resolveWalkFallbackKey(
+  direction: CardinalDirection
+): TamerMovementSheetKey {
   if (direction === 'S') return 'walk_front';
   if (direction === 'E') return 'walk_side_right';
   if (direction === 'W') return 'walk_side_left';
@@ -102,7 +125,7 @@ function resolveSheetKey(
 }
 
 /**
- * Draws the exact untouched pixel-art frame of the selected Tamer onto Canvas 2D,
+ * Draws the normalized transparent frame of the selected Tamer onto Canvas 2D,
  * using strictly movement-only animations (idle, walk_front, walk_side, walk_back).
  */
 export function drawTamerMovementFrame(
@@ -115,31 +138,36 @@ export function drawTamerMovementFrame(
   footX: number,
   footY: number
 ): boolean {
-  const sheetKey = resolveSheetKey(state, direction);
-  const entry = TAMER_MOVEMENT_MANIFESTS[tamerId][sheetKey];
-  const img = imageCache.get(tamerId)?.get(sheetKey);
+  let sheetKey = resolveSheetKey(state, direction);
+  let entry = TAMER_MOVEMENT_MANIFESTS[tamerId][sheetKey];
+  let img = imageCache.get(tamerId)?.get(sheetKey);
+
+  if ((!img || !img.complete || img.naturalWidth === 0) && state === 'idle') {
+    sheetKey = resolveWalkFallbackKey(direction);
+    entry = TAMER_MOVEMENT_MANIFESTS[tamerId][sheetKey];
+    img = imageCache.get(tamerId)?.get(sheetKey);
+  }
 
   if (!img || !img.complete || img.naturalWidth === 0) {
     return false;
   }
 
-  // Row 0 (Idle) in the source sheet is ~12% taller than Walk rows; normalize
-  // uniformly (scaleX === scaleY) so standing <-> walking never pops in height.
-  const baseScale = sheetKey === 'idle' ? 0.44 : 0.49;
+  const sheetCols = Math.max(1, Math.round(img.naturalWidth / entry.cellWidth));
+  const baseScale = 0.47;
   let scaleX = baseScale;
   let scaleY = baseScale;
   let col = 0;
 
   if (state === 'idle') {
     col =
-      sheetKey === 'idle'
-        ? ((frameIndex % entry.frameCount) + entry.frameCount) % entry.frameCount
-        : 1; // neutral standing frame facing stopped direction
+      sheetKey === 'idle' && sheetCols > 1
+        ? ((frameIndex % sheetCols) + sheetCols) % sheetCols
+        : 0;
     const breath = Math.sin(elapsedSec * 3.0);
     scaleY = baseScale * (1 + breath * 0.012);
     scaleX = baseScale * (1 - breath * 0.006);
   } else {
-    col = ((frameIndex % entry.frameCount) + entry.frameCount) % entry.frameCount;
+    col = ((frameIndex % sheetCols) + sheetCols) % sheetCols;
   }
 
   const sx = col * entry.cellWidth;

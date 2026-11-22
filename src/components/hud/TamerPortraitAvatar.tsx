@@ -24,11 +24,11 @@ export function TamerPortraitAvatar({
         aria-label={`Retrato de ${tamerName}`}
         className="h-full w-full"
         style={{
-          backgroundImage: `url(/assets/sprites/tamers/${tamerId}/idle.png)`,
+          backgroundImage: `url(/assets/sprites/tamers/${tamerId}/idle.png?v=hd2)`,
           backgroundRepeat: 'no-repeat',
           backgroundSize: '420% auto',
           backgroundPosition: '2.5% 10%',
-          imageRendering: 'pixelated',
+          imageRendering: 'auto',
         }}
       />
     </div>

@@ -312,7 +312,8 @@ export function getSavedStarterDigimonForAccount(
     if (
       parsed.digimonId === 'agumon' ||
       parsed.digimonId === 'gaomon' ||
-      parsed.digimonId === 'lalamon'
+      parsed.digimonId === 'lalamon' ||
+      parsed.digimonId === 'guilmon'
     ) {
       return parsed;
     }

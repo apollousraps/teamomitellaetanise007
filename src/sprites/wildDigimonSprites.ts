@@ -8,7 +8,7 @@ export type UploadedWildSpriteSpeciesId =
   | 'goblimon'
   | 'tsunomon'
   | 'gizamon'
-  | 'pagumon'
+  | 'koromon'
   | 'demidevimon'
   | 'palmon'
   | 'kunemon'
@@ -46,7 +46,7 @@ interface WildSpeciesSheetSpec {
   hoverOffsetPx?: number;
   /** True for towering Raid Boss Digimon with special floor seal & aura VFX. */
   isBoss?: boolean;
-  /** Exact source pixel bounds measured directly from each uploaded sheet. */
+  /** Exact source pixel bounds measured directly from each horizontal 5-frame strip. */
   frames: {
     idle: readonly [SpriteRect, SpriteRect, SpriteRect];
     attack: SpriteRect;
@@ -54,196 +54,123 @@ interface WildSpeciesSheetSpec {
   };
 }
 
+function makeHorizontalStripFrames(cellSize: number): WildSpeciesSheetSpec['frames'] {
+  return {
+    idle: [
+      { x: 0, y: 0, w: cellSize, h: cellSize },
+      { x: cellSize, y: 0, w: cellSize, h: cellSize },
+      { x: cellSize * 2, y: 0, w: cellSize, h: cellSize },
+    ],
+    attack: { x: cellSize * 3, y: 0, w: cellSize, h: cellSize },
+    hit: { x: cellSize * 4, y: 0, w: cellSize, h: cellSize },
+  };
+}
+
+const STRIP_256_FRAMES = makeHorizontalStripFrames(256);
+const STRIP_320_FRAMES = makeHorizontalStripFrames(320);
+
 const WILD_SPECIES_SPECS: Record<UploadedWildSpriteSpeciesId, WildSpeciesSheetSpec> = {
-  goblimon: {
-    url: '/assets/aistudio/053_Goblimon.png_16590f1a.webp',
-    backdropMode: 'sky-blue',
-    nativeFacingRight: false,
-    worldHeightPx: 74,
-    idleFps: 3.8,
-    shadowRx: 24,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 71, h: 84 },
-        { x: 83, y: 1, w: 69, h: 85 },
-        { x: 163, y: 0, w: 67, h: 87 },
-      ],
-      attack: { x: 0, y: 91, w: 79, h: 96 },
-      hit: { x: 85, y: 90, w: 112, h: 102 },
-    },
-  },
-  tsunomon: {
-    url: '/assets/aistudio/003_Tsunomon.png_a9577b4a.webp',
-    backdropMode: 'sky-blue',
+  koromon: {
+    url: '/assets/sprites/mobs/koromon.png?v=dmo1',
+    backdropMode: 'rgba',
     nativeFacingRight: false,
     worldHeightPx: 46,
-    idleFps: 4.2,
-    shadowRx: 17,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 32, h: 43 },
-        { x: 39, y: 0, w: 32, h: 46 },
-        { x: 82, y: 0, w: 31, h: 48 },
-      ],
-      attack: { x: 39, y: 56, w: 40, h: 33 },
-      hit: { x: 1, y: 50, w: 31, h: 42 },
-    },
+    idleFps: 5.0,
+    shadowRx: 19,
+    frames: STRIP_256_FRAMES,
+  },
+  tsunomon: {
+    url: '/assets/sprites/mobs/tsunomon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 50,
+    idleFps: 4.8,
+    shadowRx: 18,
+    frames: STRIP_256_FRAMES,
   },
   gizamon: {
-    url: '/assets/aistudio/064_Gizamon.png_0d472b90.webp',
-    backdropMode: 'sky-blue',
-    nativeFacingRight: true,
-    worldHeightPx: 62,
-    idleFps: 4.0,
-    shadowRx: 25,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 63, h: 72 },
-        { x: 68, y: 0, w: 63, h: 71 },
-        { x: 134, y: 0, w: 64, h: 70 },
-      ],
-      attack: { x: 0, y: 80, w: 67, h: 65 },
-      hit: { x: 72, y: 75, w: 72, h: 67 },
-    },
-  },
-  pagumon: {
-    url: '/assets/aistudio/007_Pagumon.png_d075245a.webp',
-    backdropMode: 'sky-blue',
-    nativeFacingRight: false,
-    worldHeightPx: 38,
-    idleFps: 4.6,
-    shadowRx: 20,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 55, h: 27 },
-        { x: 57, y: 0, w: 50, h: 27 },
-        { x: 106, y: 0, w: 54, h: 29 },
-      ],
-      attack: { x: 51, y: 32, w: 62, h: 36 },
-      hit: { x: 0, y: 33, w: 49, h: 39 },
-    },
-  },
-  demidevimon: {
-    url: '/assets/aistudio/48429_95b077ac.png',
-    backdropMode: 'magenta',
-    nativeFacingRight: false,
-    worldHeightPx: 60,
-    idleFps: 5.4,
-    shadowRx: 19,
-    hoverOffsetPx: 14,
-    frames: {
-      idle: [
-        { x: 18, y: 1, w: 52, h: 61 },
-        { x: 84, y: 4, w: 74, h: 56 },
-        { x: 173, y: 4, w: 52, h: 55 },
-      ],
-      hit: { x: 250, y: 12, w: 62, h: 51 },
-      attack: { x: 325, y: 12, w: 80, h: 50 },
-    },
-  },
-  palmon: {
-    url: '/assets/aistudio/033_Palmon.png_0b8ad31c.webp',
-    backdropMode: 'sky-blue',
-    nativeFacingRight: false,
-    worldHeightPx: 68,
-    idleFps: 4.0,
-    shadowRx: 22,
-    frames: {
-      idle: [
-        { x: 24, y: 32, w: 47, h: 63 },
-        { x: 78, y: 31, w: 48, h: 64 },
-        { x: 141, y: 30, w: 48, h: 65 },
-      ],
-      attack: { x: 141, y: 30, w: 48, h: 65 },
-      hit: { x: 24, y: 32, w: 47, h: 63 },
-    },
-  },
-  kunemon: {
-    url: '/assets/aistudio/077_Kunemon.png_bec36e11.webp',
+    url: '/assets/sprites/mobs/gizamon.png?v=dmo1',
     backdropMode: 'rgba',
-    nativeFacingRight: true,
-    worldHeightPx: 58,
+    nativeFacingRight: false,
+    worldHeightPx: 64,
     idleFps: 4.4,
-    shadowRx: 23,
-    frames: {
-      idle: [
-        { x: 24, y: 13, w: 56, h: 66 },
-        { x: 88, y: 11, w: 53, h: 68 },
-        { x: 149, y: 9, w: 49, h: 70 },
-      ],
-      hit: { x: 42, y: 88, w: 52, h: 59 },
-      attack: { x: 125, y: 89, w: 47, h: 65 },
-    },
+    shadowRx: 25,
+    frames: STRIP_256_FRAMES,
   },
-  mushroomon: {
-    url: '/assets/aistudio/078_Mushmon.png_9cefc1ec.webp',
+  goblimon: {
+    url: '/assets/sprites/mobs/goblimon.png?v=dmo1',
     backdropMode: 'rgba',
-    nativeFacingRight: false,
-    worldHeightPx: 66,
-    idleFps: 4.2,
-    shadowRx: 23,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 64, h: 61 },
-        { x: 72, y: 0, w: 65, h: 61 },
-        { x: 145, y: 1, w: 64, h: 60 },
-      ],
-      hit: { x: 33, y: 66, w: 74, h: 57 },
-      attack: { x: 114, y: 66, w: 62, h: 66 },
-    },
-  },
-  woodmon: {
-    url: '/assets/aistudio/166_Woodmon.png_38036657.webp',
-    backdropMode: 'rgba',
-    nativeFacingRight: false,
-    worldHeightPx: 88,
-    idleFps: 3.6,
-    shadowRx: 28,
-    frames: {
-      idle: [
-        { x: 0, y: 0, w: 96, h: 85 },
-        { x: 103, y: 0, w: 91, h: 85 },
-        { x: 202, y: 1, w: 78, h: 84 },
-      ],
-      hit: { x: 49, y: 89, w: 89, h: 94 },
-      attack: { x: 145, y: 102, w: 86, h: 85 },
-    },
-  },
-  kiwimon: {
-    url: '/assets/aistudio/128_Kiwimon.png_ee2a020d.webp',
-    backdropMode: 'sky-blue',
     nativeFacingRight: false,
     worldHeightPx: 78,
     idleFps: 4.2,
-    shadowRx: 26,
-    frames: {
-      idle: [
-        { x: 4, y: 0, w: 68, h: 74 },
-        { x: 100, y: 2, w: 68, h: 73 },
-        { x: 192, y: 3, w: 67, h: 72 },
-      ],
-      hit: { x: 21, y: 93, w: 56, h: 65 },
-      attack: { x: 121, y: 89, w: 57, h: 76 },
-    },
+    shadowRx: 25,
+    frames: STRIP_256_FRAMES,
   },
-  kuwagamon: {
-    url: '/assets/aistudio/101_Kuwagamon.png_a409969f.webp',
+  demidevimon: {
+    url: '/assets/sprites/mobs/demidevimon.png?v=dmo1',
     backdropMode: 'rgba',
     nativeFacingRight: false,
-    worldHeightPx: 196,
+    worldHeightPx: 66,
+    idleFps: 5.6,
+    shadowRx: 20,
+    hoverOffsetPx: 14,
+    frames: STRIP_256_FRAMES,
+  },
+  palmon: {
+    url: '/assets/sprites/mobs/palmon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 72,
+    idleFps: 4.4,
+    shadowRx: 23,
+    frames: STRIP_256_FRAMES,
+  },
+  kunemon: {
+    url: '/assets/sprites/mobs/kunemon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 64,
+    idleFps: 4.6,
+    shadowRx: 24,
+    frames: STRIP_256_FRAMES,
+  },
+  mushroomon: {
+    url: '/assets/sprites/mobs/mushroomon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 70,
+    idleFps: 4.5,
+    shadowRx: 23,
+    frames: STRIP_256_FRAMES,
+  },
+  woodmon: {
+    url: '/assets/sprites/mobs/woodmon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 92,
+    idleFps: 3.9,
+    shadowRx: 29,
+    frames: STRIP_256_FRAMES,
+  },
+  kiwimon: {
+    url: '/assets/sprites/mobs/kiwimon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 82,
+    idleFps: 4.5,
+    shadowRx: 26,
+    frames: STRIP_256_FRAMES,
+  },
+  kuwagamon: {
+    url: '/assets/sprites/mobs/kuwagamon.png?v=dmo1',
+    backdropMode: 'rgba',
+    nativeFacingRight: false,
+    worldHeightPx: 204,
     idleFps: 6.2,
     shadowRx: 68,
     hoverOffsetPx: 18,
     isBoss: true,
-    frames: {
-      idle: [
-        { x: 9, y: 9, w: 142, h: 113 },
-        { x: 159, y: 15, w: 141, h: 107 },
-        { x: 308, y: 22, w: 138, h: 100 },
-      ],
-      hit: { x: 74, y: 125, w: 143, h: 119 },
-      attack: { x: 225, y: 136, w: 156, h: 90 },
-    },
+    frames: STRIP_320_FRAMES,
   },
 };
 
@@ -251,7 +178,7 @@ const WILD_SPECIES_IDS: readonly UploadedWildSpriteSpeciesId[] = [
   'goblimon',
   'tsunomon',
   'gizamon',
-  'pagumon',
+  'koromon',
   'demidevimon',
   'palmon',
   'kunemon',
@@ -310,7 +237,8 @@ function bakeTransparentFrame(
     return { canvas: work, flashCanvas: work, width: rect.w, height: rect.h };
   }
 
-  wctx.imageSmoothingEnabled = false;
+  wctx.imageSmoothingEnabled = true;
+  wctx.imageSmoothingQuality = 'high';
   wctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
 
   const imgData = wctx.getImageData(0, 0, rect.w, rect.h);
@@ -418,7 +346,8 @@ function bakeTransparentFrame(
   trimmed.height = trimH;
   const tctx = trimmed.getContext('2d');
   if (tctx) {
-    tctx.imageSmoothingEnabled = false;
+    tctx.imageSmoothingEnabled = true;
+    tctx.imageSmoothingQuality = 'high';
     tctx.drawImage(work, sx, sy, trimW, trimH, 0, 0, trimW, trimH);
   }
 
@@ -428,7 +357,8 @@ function bakeTransparentFrame(
   flashCanvas.height = trimH;
   const fctx = flashCanvas.getContext('2d');
   if (fctx) {
-    fctx.imageSmoothingEnabled = false;
+    fctx.imageSmoothingEnabled = true;
+    fctx.imageSmoothingQuality = 'high';
     fctx.drawImage(trimmed, 0, 0);
     fctx.globalCompositeOperation = 'source-atop';
     fctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
@@ -665,16 +595,16 @@ export function drawWildDigimonSprite(
       if (opts.isHitFlash) {
         frame = atlas.hit;
         const recoilDir = opts.facingRight ? -1 : 1;
-        lungeX = recoilDir * (spec.isBoss ? 7 : 4.5);
-        hopY = -3;
-        tilt = recoilDir * (spec.isBoss ? 0.045 : 0.06);
+        lungeX = recoilDir * (spec.isBoss ? 8 : 5.5);
+        hopY = -3.5;
+        tilt = recoilDir * (spec.isBoss ? 0.05 : 0.07);
       } else if (opts.isAttacking) {
         frame = atlas.attack;
         const curve = Math.sin(Math.max(0, Math.min(1, opts.attackProgress)) * Math.PI);
         const atkDir = opts.facingRight ? 1 : -1;
-        lungeX = atkDir * curve * (spec.isBoss ? 22 : 11);
-        hopY = -curve * (spec.isBoss ? 9 : 5);
-        tilt = atkDir * curve * (spec.isBoss ? 0.06 : 0.07);
+        lungeX = atkDir * curve * (spec.isBoss ? 24 : 13);
+        hopY = -curve * (spec.isBoss ? 10 : 6);
+        tilt = atkDir * curve * (spec.isBoss ? 0.07 : 0.085);
       } else {
         const seqIdx = Math.floor(
           (safeElapsed * spec.idleFps + opts.phaseOffset * 2.1) % IDLE_PING_PONG.length
@@ -683,9 +613,9 @@ export function drawWildDigimonSprite(
         frame = atlas.idle[frameIdx];
 
         if (spec.hoverOffsetPx) {
-          hopY = -(spec.hoverOffsetPx + Math.sin(safeElapsed * 4.5 + opts.phaseOffset) * 4.8);
+          hopY = -(spec.hoverOffsetPx + Math.sin(safeElapsed * 4.5 + opts.phaseOffset) * 5.4);
         } else {
-          const bounceAmp = species === 'tsunomon' || species === 'pagumon' ? 2.4 : 1.3;
+          const bounceAmp = species === 'tsunomon' || species === 'koromon' ? 3.2 : 1.9;
           hopY = -Math.abs(Math.sin(safeElapsed * 3.8 + opts.phaseOffset)) * bounceAmp;
         }
       }
@@ -748,7 +678,8 @@ export function drawWildDigimonSprite(
       if (shouldFlipX) {
         ctx.scale(-1, 1);
       }
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       const sourceCanvas = opts.isHitFlash ? frame.flashCanvas : frame.canvas;
       ctx.drawImage(sourceCanvas, -drawW / 2, -drawH + 4 * pScale, drawW, drawH);
       ctx.restore();

@@ -58,17 +58,16 @@ export function preloadDigimonPartnerAssets(
           const isFxAsset = key === 'atk1_fx' || key === 'atk2_fx';
           const cacheBust = isFxAsset
             ? '?v=fx3'
-            : formId === 'geogreymon' ||
+            : formId === 'agumon' ||
+                formId === 'geogreymon' ||
                 formId === 'rizegreymon' ||
                 formId === 'shinegreymon' ||
-                formId === 'gaogamon' ||
-                formId === 'machgaogamon' ||
-                formId === 'miragegaogamon' ||
-                formId === 'sunflowmon' ||
-                formId === 'lilamon' ||
-                formId === 'rosemon'
-              ? '?v=back2'
-              : '';
+                formId === 'guilmon' ||
+                formId === 'growlmon' ||
+                formId === 'megalogrowlmon' ||
+                formId === 'dukemon'
+              ? '?v=dmo5'
+              : '?v=dmo6';
           img.src = `/assets/sprites/digimon/${formId}/${key}.png${cacheBust}`;
         })
     )
@@ -112,17 +111,18 @@ const DIRECTION_CELL_MAP: Record<
   >
 > = {
   agumon: {
+    // 4 cols x 3 rows DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W native / E flipX), Row 2 = trás (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
         { col: 0, row: 0 },
         { col: 1, row: 0 },
-        { col: 0, row: 0 },
-        { col: 1, row: 0, flipX: true },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
       ],
     },
     W: {
-      idle: { col: 2, row: 0 },
+      idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
@@ -131,7 +131,7 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     E: {
-      idle: { col: 2, row: 0, flipX: true },
+      idle: { col: 0, row: 1, flipX: true },
       walk: [
         { col: 0, row: 1, flipX: true },
         { col: 1, row: 1, flipX: true },
@@ -140,17 +140,17 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     N: {
-      idle: { col: 3, row: 0 },
+      idle: { col: 0, row: 2, flipX: true },
       walk: [
-        { col: 0, row: 2 },
-        { col: 1, row: 2 },
-        { col: 2, row: 2 },
-        { col: 3, row: 2 },
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   geogreymon: {
-    // 4 cols x 1 row extracted from geogre10: feet-aligned full-detail stances facing W (flipped for E)
+    // 4 cols x 3 rows DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W native / E flipX), Row 2 = trás (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -161,35 +161,35 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   rizegreymon: {
-    // 4 cols x 1 row extracted from RizeGreymon DS sheet: feet-aligned full-detail stances facing W (flipped for E)
+    // 4 cols x 3 rows DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W native / E flipX), Row 2 = trás (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -200,35 +200,35 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   shinegreymon: {
-    // 4 cols x 1 row extracted from ShineGreymon_vg animated sprite (natively faces W; flipX for E)
+    // 4 cols x 3 rows DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W native / E flipX), Row 2 = trás (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -239,30 +239,30 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
@@ -272,40 +272,39 @@ const DIRECTION_CELL_MAP: Record<
       walk: [
         { col: 0, row: 0 },
         { col: 1, row: 0 },
-        { col: 0, row: 0 },
-        { col: 1, row: 0, flipX: true },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
       ],
     },
     W: {
-      idle: { col: 2, row: 0 },
+      idle: { col: 0, row: 1 },
       walk: [
-        { col: 0, row: 2 },
-        { col: 1, row: 2 },
-        { col: 2, row: 2 },
-        { col: 1, row: 2 },
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
       ],
     },
     E: {
-      idle: { col: 2, row: 0, flipX: true },
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
       walk: [
         { col: 0, row: 2, flipX: true },
         { col: 1, row: 2, flipX: true },
         { col: 2, row: 2, flipX: true },
-        { col: 1, row: 2, flipX: true },
-      ],
-    },
-    N: {
-      idle: { col: 3, row: 0 },
-      walk: [
-        { col: 3, row: 1 },
-        { col: 3, row: 0 },
-        { col: 3, row: 2 },
-        { col: 3, row: 0 },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   gaogamon: {
-    // 4 cols x 2 rows: Row 0 = Gaogamon_vg animated stances (natively W, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -316,35 +315,34 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   machgaogamon: {
-    // 4 cols x 2 rows: Row 0 = MachGaogamon_vg animated stances (natively W, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -355,35 +353,34 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   miragegaogamon: {
-    // 4 cols x 2 rows: Row 0 = MirageGaogamon_vg animated stances (natively W, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -394,30 +391,30 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
@@ -427,40 +424,39 @@ const DIRECTION_CELL_MAP: Record<
       walk: [
         { col: 0, row: 0 },
         { col: 1, row: 0 },
-        { col: 0, row: 0 },
-        { col: 1, row: 0, flipX: true },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
       ],
     },
     W: {
-      idle: { col: 1, row: 1 },
+      idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
-        { col: 0, row: 2 },
-        { col: 1, row: 2 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
       ],
     },
     E: {
-      idle: { col: 1, row: 1, flipX: true },
+      idle: { col: 0, row: 1, flipX: true },
       walk: [
         { col: 0, row: 1, flipX: true },
         { col: 1, row: 1, flipX: true },
-        { col: 0, row: 2, flipX: true },
-        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
       ],
     },
     N: {
-      idle: { col: 2, row: 0 },
+      idle: { col: 0, row: 2, flipX: true },
       walk: [
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-        { col: 2, row: 1 },
-        { col: 3, row: 2 },
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   sunflowmon: {
-    // 4 cols x 2 rows: Row 0 = animated wing-flap stances (W native, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -471,35 +467,34 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   lilamon: {
-    // 4 cols x 2 rows: Row 0 = graceful hovering stances (W native, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -510,35 +505,34 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
-      idle: { col: 0, row: 0 },
-      walk: [
-        { col: 0, row: 0 },
-        { col: 1, row: 0 },
-        { col: 2, row: 0 },
-        { col: 3, row: 0 },
-      ],
-    },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
   rosemon: {
-    // 4 cols x 2 rows: Row 0 = Rosemon_vg animated stances (W native, flipX for E), Row 1 = back-view walk (N)
     S: {
       idle: { col: 0, row: 0 },
       walk: [
@@ -549,6 +543,36 @@ const DIRECTION_CELL_MAP: Record<
       ],
     },
     W: {
+      idle: { col: 0, row: 1 },
+      walk: [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
+      ],
+    },
+  },
+  guilmon: {
+    // 4 cols x 3 rows DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W native / E flipX), Row 2 = trás (N)
+    S: {
       idle: { col: 0, row: 0 },
       walk: [
         { col: 0, row: 0 },
@@ -557,22 +581,148 @@ const DIRECTION_CELL_MAP: Record<
         { col: 3, row: 0 },
       ],
     },
-    E: {
-      idle: { col: 0, row: 0, flipX: true },
-      walk: [
-        { col: 0, row: 0, flipX: true },
-        { col: 1, row: 0, flipX: true },
-        { col: 2, row: 0, flipX: true },
-        { col: 3, row: 0, flipX: true },
-      ],
-    },
-    N: {
+    W: {
       idle: { col: 0, row: 1 },
       walk: [
         { col: 0, row: 1 },
         { col: 1, row: 1 },
         { col: 2, row: 1 },
         { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
+      ],
+    },
+  },
+  growlmon: {
+    // 4 cols x 3 rows single-sprite DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W/E), Row 2 = trás (N)
+    S: {
+      idle: { col: 0, row: 0 },
+      walk: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ],
+    },
+    W: {
+      idle: { col: 0, row: 1 },
+      walk: [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
+      ],
+    },
+  },
+  megalogrowlmon: {
+    // 4 cols x 3 rows single-sprite DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W/E), Row 2 = trás (N)
+    S: {
+      idle: { col: 0, row: 0 },
+      walk: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ],
+    },
+    W: {
+      idle: { col: 0, row: 1 },
+      walk: [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
+      ],
+    },
+  },
+  dukemon: {
+    // 4 cols x 3 rows single-sprite DMO PNG sheet: Row 0 = frente (S), Row 1 = lado (W/E), Row 2 = trás (N)
+    S: {
+      idle: { col: 0, row: 0 },
+      walk: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ],
+    },
+    W: {
+      idle: { col: 0, row: 1 },
+      walk: [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+        { col: 3, row: 1 },
+      ],
+    },
+    E: {
+      idle: { col: 0, row: 1, flipX: true },
+      walk: [
+        { col: 0, row: 1, flipX: true },
+        { col: 1, row: 1, flipX: true },
+        { col: 2, row: 1, flipX: true },
+        { col: 3, row: 1, flipX: true },
+      ],
+    },
+    N: {
+      idle: { col: 0, row: 2, flipX: true },
+      walk: [
+        { col: 0, row: 2, flipX: true },
+        { col: 1, row: 2, flipX: true },
+        { col: 2, row: 2, flipX: true },
+        { col: 3, row: 2, flipX: true },
       ],
     },
   },
@@ -602,106 +752,74 @@ export function drawDigimonPartnerFrame(
   }
 
   const dirEntry = DIRECTION_CELL_MAP[formId][direction];
-  const hasAnimatedIdle =
-    direction !== 'N' &&
-    (formId === 'geogreymon' ||
-      formId === 'rizegreymon' ||
-      formId === 'shinegreymon' ||
-      formId === 'gaogamon' ||
-      formId === 'machgaogamon' ||
-      formId === 'miragegaogamon' ||
-      formId === 'sunflowmon' ||
-      formId === 'lilamon' ||
-      formId === 'rosemon');
-  const idleFps =
-    formId === 'shinegreymon' || formId === 'miragegaogamon' || formId === 'rosemon'
-      ? 3.8
-      : formId === 'gaogamon' ||
-          formId === 'machgaogamon' ||
-          formId === 'sunflowmon' ||
-          formId === 'lilamon'
-        ? 3.6
-        : 2.8;
-  const rawIdleIdx = Math.floor(Math.max(0, elapsedSec) * idleFps);
-  const safeIdleIdx =
-    ((rawIdleIdx % DIGIMON_FRAME_COUNT) + DIGIMON_FRAME_COUNT) %
-    DIGIMON_FRAME_COUNT;
   const safeWalkIdx =
     ((frameIndex % DIGIMON_FRAME_COUNT) + DIGIMON_FRAME_COUNT) %
     DIGIMON_FRAME_COUNT;
   const cell =
     state === 'idle'
-      ? hasAnimatedIdle
-        ? (dirEntry.walk[safeIdleIdx] ?? dirEntry.idle)
-        : dirEntry.idle
+      ? dirEntry.idle
       : (dirEntry.walk[safeWalkIdx] ?? dirEntry.idle);
 
-  const backViewBoost =
-    direction === 'N' &&
-    (formId === 'gaogamon' || formId === 'rosemon')
-      ? 1.1
-      : 1;
-  const baseScale = getPartnerScale(formId) * backViewBoost;
-  const breath = state === 'idle' ? Math.sin(elapsedSec * 3.4) : 0;
-  // Uniform gentle breathing — zero aspect distortion
-  const uniformScale = baseScale * (1 + breath * 0.012);
-  const isSideWalkBounce = state === 'walk' && direction !== 'N';
-  const floatY =
-    formId === 'lalamon'
-      ? Math.sin(elapsedSec * 3.6 + (state === 'walk' ? 1.2 : 0)) * 2.2
-      : formId === 'sunflowmon'
-        ? Math.sin(elapsedSec * 4.4 + (state === 'walk' ? 1.4 : 0)) * 3.2 - 1.5
-        : formId === 'lilamon'
-          ? Math.sin(elapsedSec * 4.0 + (state === 'walk' ? 1.4 : 0)) * 3.8 - 2.2
-          : formId === 'shinegreymon' && isSideWalkBounce
-            ? -Math.abs(Math.sin(elapsedSec * 8.2)) * 5.0 - 1.5
-            : formId === 'miragegaogamon' && isSideWalkBounce
-              ? -Math.abs(Math.sin(elapsedSec * 9.8)) * 5.4 - 1.5
-              : formId === 'rosemon' && isSideWalkBounce
-                ? -Math.abs(Math.sin(elapsedSec * 9.0)) * 4.4 - 1.0
-                : formId === 'machgaogamon' && isSideWalkBounce
-                  ? -Math.abs(Math.sin(elapsedSec * 10.2)) * 5.2 - 1.2
-                  : formId === 'gaogamon' && isSideWalkBounce
-                    ? -Math.abs(Math.sin(elapsedSec * 10.6)) * 4.8
-                    : formId === 'geogreymon' && isSideWalkBounce
-                      ? -Math.abs(Math.sin(elapsedSec * 9.2)) * 4.0
-                      : formId === 'rizegreymon' && isSideWalkBounce
-                        ? -Math.abs(Math.sin(elapsedSec * 8.6)) * 4.5
-                        : 0;
-  const walkTilt =
-    formId === 'geogreymon' && isSideWalkBounce
-      ? Math.sin(elapsedSec * 9.2) * 0.032
-      : formId === 'gaogamon' && isSideWalkBounce
-        ? Math.sin(elapsedSec * 10.6) * 0.04
-        : formId === 'machgaogamon' && isSideWalkBounce
-          ? Math.sin(elapsedSec * 10.2) * 0.036
-          : formId === 'miragegaogamon' && isSideWalkBounce
-            ? Math.sin(elapsedSec * 9.8) * 0.035
-            : formId === 'rosemon' && isSideWalkBounce
-              ? Math.sin(elapsedSec * 9.0) * 0.032
-              : formId === 'lilamon' && isSideWalkBounce
-                ? Math.sin(elapsedSec * 7.6) * 0.04
-                : formId === 'sunflowmon' && isSideWalkBounce
-                  ? Math.sin(elapsedSec * 8.4) * 0.038
-                  : formId === 'rizegreymon' && isSideWalkBounce
-                    ? Math.sin(elapsedSec * 8.6) * 0.03
-                    : formId === 'shinegreymon' && isSideWalkBounce
-                      ? Math.sin(elapsedSec * 8.2) * 0.034
-                      : 0;
+  const baseScale = getPartnerScale(formId);
+  const isMegaForm =
+    formId === 'shinegreymon' ||
+    formId === 'miragegaogamon' ||
+    formId === 'rosemon' ||
+    formId === 'dukemon';
+  const isRookieForm =
+    formId === 'agumon' ||
+    formId === 'gaomon' ||
+    formId === 'lalamon' ||
+    formId === 'guilmon';
 
-  const sx = cell.col * DIGIMON_SHEET_CELL;
-  const sy = cell.row * DIGIMON_SHEET_CELL;
-  const dw = DIGIMON_SHEET_CELL * uniformScale;
-  const dh = DIGIMON_SHEET_CELL * uniformScale;
-  const feetPad = 4 * uniformScale;
+  // Planted, grounded breathing & stride elasticity (matches Tamer ground contact — zero hovering)
+  const breath = Math.sin(elapsedSec * (state === 'idle' ? 3.2 : 7.0));
+  const strideFreq = isRookieForm ? 12.6 : isMegaForm ? 9.8 : 11.2;
+  const strideSin = Math.sin(elapsedSec * strideFreq);
+  const impact = 1 - Math.abs(strideSin);
+
+  let scaleX = baseScale;
+  let scaleY = baseScale;
+  if (state === 'idle') {
+    scaleX = baseScale * (1 - breath * 0.009);
+    scaleY = baseScale * (1 + breath * 0.015);
+  } else {
+    // Grounded stride squash/stretch anchored strictly at the soles of the feet
+    scaleX = baseScale * (1 + impact * 0.02);
+    scaleY = baseScale * (1 - impact * 0.018);
+  }
+
+  const forwardRunLean =
+    state === 'walk'
+      ? direction === 'W'
+        ? -0.036
+        : direction === 'E'
+          ? 0.036
+          : 0
+      : 0;
+  const walkTilt =
+    state === 'idle'
+      ? 0
+      : strideSin * (direction === 'N' ? 0.02 : 0.026) + forwardRunLean;
+
+  const srcCell = Math.max(
+    DIGIMON_SHEET_CELL,
+    Math.round(img.naturalWidth / DIGIMON_FRAME_COUNT)
+  );
+  const sx = cell.col * srcCell;
+  const sy = cell.row * srcCell;
+  const dw = DIGIMON_SHEET_CELL * scaleX;
+  const dh = DIGIMON_SHEET_CELL * scaleY;
+  // Offset cell bottom padding so both front toes & rear heel rest inside the ground shadow
+  const feetPad = 9.0 * scaleY;
 
   ctx.save();
-  ctx.translate(footX, footY + floatY);
-  if (cell.flipX) {
-    ctx.scale(-1, 1);
-  }
+  ctx.translate(footX, footY);
   if (walkTilt !== 0) {
     ctx.rotate(walkTilt);
+  }
+  if (cell.flipX) {
+    ctx.scale(-1, 1);
   }
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
@@ -709,8 +827,8 @@ export function drawDigimonPartnerFrame(
     img,
     sx,
     sy,
-    DIGIMON_SHEET_CELL,
-    DIGIMON_SHEET_CELL,
+    srcCell,
+    srcCell,
     -dw / 2,
     -dh + feetPad,
     dw,
@@ -723,7 +841,7 @@ export function drawDigimonPartnerFrame(
 
 /**
  * Draws the exact Combat Attack Pose sprite (Special 1 / Special 2 / Basic lunge)
- * scaled faithfully per evolution stage.
+ * with dynamic afterimage trails and elemental charge halo.
  */
 export function drawDigimonAttackPoseFrame(
   ctx: CanvasRenderingContext2D,
@@ -753,17 +871,23 @@ export function drawDigimonAttackPoseFrame(
   }
 
   const baseLungeDist =
-    formId === 'miragegaogamon'
-      ? 18
-      : formId === 'shinegreymon' || formId === 'machgaogamon' || formId === 'rosemon'
-        ? 16
-        : formId === 'rizegreymon' || formId === 'gaogamon' || formId === 'lilamon'
-          ? 14
-          : formId === 'geogreymon' || formId === 'sunflowmon'
-            ? 12
-            : 10;
-  // Physical melee basic hits step closer into the enemy with a snappy strike arc
-  const lungeDist = attackKind === 'basic' ? baseLungeDist * 1.48 : baseLungeDist;
+    formId === 'miragegaogamon' ||
+    formId === 'dukemon' ||
+    formId === 'shinegreymon' ||
+    formId === 'rosemon'
+      ? 22
+      : formId === 'machgaogamon' ||
+          formId === 'lilamon' ||
+          formId === 'megalogrowlmon' ||
+          formId === 'rizegreymon'
+        ? 19
+        : formId === 'gaogamon' ||
+            formId === 'sunflowmon' ||
+            formId === 'growlmon' ||
+            formId === 'geogreymon'
+          ? 17
+          : 15;
+  const lungeDist = attackKind === 'basic' ? baseLungeDist * 1.45 : baseLungeDist * 1.12;
   const strikeCurve =
     attackKind === 'basic'
       ? Math.sin(Math.pow(Math.min(1, progress), 0.72) * Math.PI)
@@ -772,64 +896,84 @@ export function drawDigimonAttackPoseFrame(
 
   const formProfile = getDigimonFormProfile(formId);
   const targetH = formProfile.worldDimensions.attackPoseHeight;
-
   const ratio = poseImg.naturalWidth / Math.max(1, poseImg.naturalHeight);
-  const dh = targetH;
-  const dw = targetH * ratio;
+  const strikeScale = 1 + strikeCurve * 0.075;
+  const dh = targetH * strikeScale;
+  const dw = dh * ratio;
   const atkPulse = Math.sin(Math.min(1, progress) * Math.PI);
+  const liftY =
+    atkPulse *
+    (formId === 'dukemon' ||
+    formId === 'shinegreymon' ||
+    formId === 'miragegaogamon' ||
+    formId === 'rosemon'
+      ? attackKind === 'basic'
+        ? 9.0
+        : 11.5
+      : attackKind === 'basic'
+        ? 6.5
+        : 8.8);
+  const leanAngle =
+    strikeCurve *
+    (attackKind === 'basic'
+      ? 0.12
+      : attackKind === 'special2'
+        ? 0.09
+        : 0.065);
+
+  const glowColor =
+    attackKind === 'special2' &&
+    (formId === 'dukemon' || formId === 'shinegreymon' || formId === 'miragegaogamon')
+      ? 'rgba(250, 204, 21, 0.94)'
+      : formProfile.theme.glowRgba;
+
+  // Dynamic glowing motion afterimage trail behind the attacking Digimon
+  if (strikeCurve > 0.16) {
+    const ghostOffset = lungeOffset * 0.35;
+    ctx.save();
+    ctx.globalAlpha = strikeCurve * 0.34;
+    ctx.translate(footX + ghostOffset, footY - liftY * 0.55);
+    if (!facingRight) ctx.scale(-1, 1);
+    ctx.rotate(leanAngle * 0.55);
+    ctx.drawImage(poseImg, -dw / 2, -dh + 3, dw, dh);
+    ctx.restore();
+  }
+
+  // Radiant charge aura behind the attacker at peak strike
+  if (atkPulse > 0.12) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = atkPulse * (attackKind === 'basic' ? 0.32 : 0.48);
+    const auraR = Math.max(24, dw * 0.52);
+    const auraGrad = ctx.createRadialGradient(
+      footX + lungeOffset,
+      footY - dh * 0.48 - liftY,
+      2,
+      footX + lungeOffset,
+      footY - dh * 0.48 - liftY,
+      auraR
+    );
+    auraGrad.addColorStop(0, '#ffffff');
+    auraGrad.addColorStop(0.35, formProfile.theme.accentHex);
+    auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(footX + lungeOffset, footY - dh * 0.48 - liftY, auraR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   ctx.save();
-  ctx.translate(
-    footX + lungeOffset,
-    footY -
-      (formId === 'shinegreymon' || formId === 'miragegaogamon' || formId === 'rosemon'
-        ? atkPulse * 5
-        : formId === 'lilamon' || formId === 'sunflowmon'
-          ? atkPulse * 6 + 3
-          : formId === 'machgaogamon' && attackKind === 'special1'
-            ? atkPulse * 6
-            : 0)
-  );
+  ctx.translate(footX + lungeOffset, footY - liftY);
   if (!facingRight) {
     ctx.scale(-1, 1);
   }
-  if (attackKind === 'basic') {
-    // Crisp physical melee strike lean for every Digimon
-    ctx.rotate(strikeCurve * 0.09);
-  } else if (formId === 'shinegreymon') {
-    ctx.rotate(atkPulse * (attackKind === 'special2' ? 0.09 : 0.055));
-    ctx.shadowColor =
-      attackKind === 'special2'
-        ? 'rgba(253, 224, 71, 0.92)'
-        : 'rgba(251, 146, 60, 0.88)';
-    ctx.shadowBlur = 18 * atkPulse;
-  } else if (formId === 'miragegaogamon') {
-    ctx.rotate(atkPulse * (attackKind === 'special2' ? 0.07 : 0.05));
-    ctx.shadowColor =
-      attackKind === 'special2'
-        ? 'rgba(250, 204, 21, 0.92)'
-        : 'rgba(96, 165, 250, 0.92)';
-    ctx.shadowBlur = 18 * atkPulse;
-  } else if (formId === 'rosemon') {
-    ctx.rotate(atkPulse * (attackKind === 'special2' ? 0.065 : 0.045));
-    ctx.shadowColor =
-      attackKind === 'special2'
-        ? 'rgba(244, 63, 94, 0.94)'
-        : 'rgba(250, 204, 21, 0.9)';
-    ctx.shadowBlur = 18 * atkPulse;
-  } else if (formId === 'lilamon') {
-    ctx.shadowColor = 'rgba(244, 114, 182, 0.9)';
-    ctx.shadowBlur = 16 * atkPulse;
-  } else if (formId === 'sunflowmon') {
-    ctx.shadowColor = 'rgba(250, 204, 21, 0.88)';
-    ctx.shadowBlur = 14 * atkPulse;
-  } else if (formId === 'machgaogamon') {
-    ctx.shadowColor = 'rgba(56, 189, 248, 0.88)';
-    ctx.shadowBlur = 16 * atkPulse;
-  }
+  ctx.rotate(leanAngle);
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = (attackKind === 'basic' ? 14 : 20) * Math.max(strikeCurve, atkPulse);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(poseImg, -dw / 2, -dh + 3, dw, dh);
+  ctx.drawImage(poseImg, -dw / 2, -dh + 6, dw, dh);
   ctx.restore();
 
   return true;
@@ -1107,6 +1251,86 @@ const SKILL_VFX_SPECS: Record<
       particleCount: 18,
     },
   },
+  guilmon: {
+    special1: {
+      archetype: 'projectile',
+      primaryHex: '#ef4444',
+      secondaryHex: '#fde047',
+      glowRgba: 'rgba(239, 68, 68, 0.9)',
+      motif: 'embers',
+      baseSize: 66,
+      particleCount: 14,
+    },
+    special2: {
+      archetype: 'slash',
+      primaryHex: '#dc2626',
+      secondaryHex: '#fdba74',
+      glowRgba: 'rgba(220, 38, 38, 0.92)',
+      motif: 'embers',
+      baseSize: 110,
+      particleCount: 14,
+    },
+  },
+  growlmon: {
+    special1: {
+      archetype: 'beam',
+      primaryHex: '#ef4444',
+      secondaryHex: '#fde047',
+      glowRgba: 'rgba(239, 68, 68, 0.92)',
+      motif: 'embers',
+      baseSize: 72,
+      particleCount: 16,
+    },
+    special2: {
+      archetype: 'slash',
+      primaryHex: '#ec4899',
+      secondaryHex: '#fda4af',
+      glowRgba: 'rgba(236, 72, 153, 0.94)',
+      motif: 'sparks',
+      baseSize: 126,
+      particleCount: 16,
+    },
+  },
+  megalogrowlmon: {
+    special1: {
+      archetype: 'beam',
+      primaryHex: '#ef4444',
+      secondaryHex: '#fef08a',
+      glowRgba: 'rgba(244, 63, 94, 0.95)',
+      motif: 'sparks',
+      baseSize: 88,
+      particleCount: 18,
+    },
+    special2: {
+      archetype: 'burst',
+      primaryHex: '#f43f5e',
+      secondaryHex: '#e2e8f0',
+      glowRgba: 'rgba(244, 63, 94, 0.96)',
+      motif: 'lightning',
+      baseSize: 138,
+      particleCount: 18,
+    },
+  },
+  dukemon: {
+    special1: {
+      archetype: 'beam',
+      primaryHex: '#facc15',
+      secondaryHex: '#fef08a',
+      glowRgba: 'rgba(250, 204, 21, 0.96)',
+      motif: 'stars',
+      baseSize: 94,
+      particleCount: 18,
+    },
+    special2: {
+      archetype: 'beam',
+      primaryHex: '#dc2626',
+      secondaryHex: '#fef08a',
+      glowRgba: 'rgba(253, 224, 71, 0.98)',
+      motif: 'stars',
+      baseSize: 120,
+      particleCount: 22,
+    },
+  },
 };
 
 function seededUnit(seed: number, idx: number, salt: number): number {
@@ -1305,50 +1529,172 @@ export function drawDigimonSpecialVfx(
     const ix = targetX + (facingRight ? -4 : 4);
     const iy = targetY - 26;
     const hitScale =
-      formId === 'shinegreymon' || formId === 'miragegaogamon' || formId === 'rosemon'
-        ? 1.32
-        : formId === 'rizegreymon' || formId === 'machgaogamon' || formId === 'lilamon'
-          ? 1.18
-          : formId === 'geogreymon' || formId === 'gaogamon' || formId === 'sunflowmon'
-            ? 1.08
-            : 0.95;
+      formId === 'shinegreymon' ||
+      formId === 'miragegaogamon' ||
+      formId === 'rosemon' ||
+      formId === 'dukemon'
+        ? 1.4
+        : formId === 'rizegreymon' ||
+            formId === 'machgaogamon' ||
+            formId === 'lilamon' ||
+            formId === 'megalogrowlmon'
+          ? 1.24
+          : formId === 'geogreymon' ||
+              formId === 'gaogamon' ||
+              formId === 'sunflowmon' ||
+              formId === 'growlmon'
+            ? 1.12
+            : 1.0;
 
     ctx.save();
     ctx.translate(ix, iy);
-    ctx.globalAlpha = Math.max(0, Math.min(1, alpha * 0.96));
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha * 0.98));
+
+    // Bright additive impact flash behind the hit
+    const haloR = (26 + bp * 20) * hitScale;
+    const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, haloR);
+    halo.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+    halo.addColorStop(0.32, profile.theme.accentHex);
+    halo.addColorStop(0.65, profile.theme.glowRgba);
+    halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, haloR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Expanding double shockwave rings
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.6 * hitScale;
+    ctx.beginPath();
+    ctx.arc(0, 0, (12 + bp * 24) * hitScale, 0, Math.PI * 2);
+    ctx.stroke();
 
     ctx.strokeStyle = profile.theme.accentHex;
-    ctx.lineWidth = 2.4 * hitScale;
+    ctx.lineWidth = 2.2 * hitScale;
     ctx.beginPath();
-    ctx.arc(0, 0, (10 + bp * 18) * hitScale, 0, Math.PI * 2);
+    ctx.arc(0, 0, (6 + bp * 32) * hitScale, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
 
     const dirSign = facingRight ? 1 : -1;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3.2 * hitScale;
-    ctx.beginPath();
-    ctx.moveTo(-14 * dirSign * hitScale, -12 * hitScale);
-    ctx.lineTo(15 * dirSign * hitScale, 12 * hitScale);
-    ctx.moveTo(-10 * dirSign * hitScale, 11 * hitScale);
-    ctx.lineTo(12 * dirSign * hitScale, -11 * hitScale);
-    ctx.stroke();
+    if (
+      formId === 'guilmon' ||
+      formId === 'growlmon' ||
+      formId === 'megalogrowlmon' ||
+      formId === 'agumon' ||
+      formId === 'geogreymon' ||
+      formId === 'rizegreymon' ||
+      formId === 'shinegreymon'
+    ) {
+      // Triple scorching dragon-claw slash across the target mob
+      for (let ci = -1; ci <= 1; ci++) {
+        const offset = ci * 6.5 * hitScale;
+        ctx.strokeStyle = profile.theme.accentHex;
+        ctx.lineWidth = 4.5 * hitScale;
+        ctx.beginPath();
+        ctx.moveTo(
+          (-16 * dirSign + offset * 0.35) * hitScale,
+          (-14 + offset) * hitScale
+        );
+        ctx.lineTo(
+          (18 * dirSign + offset * 0.35) * hitScale,
+          (13 + offset) * hitScale
+        );
+        ctx.stroke();
 
-    ctx.strokeStyle = profile.theme.accentHex;
-    ctx.lineWidth = 3.8 * hitScale;
-    ctx.beginPath();
-    ctx.arc(0, 0, (14 + bp * 10) * hitScale, -0.95, 1.15);
-    ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2 * hitScale;
+        ctx.beginPath();
+        ctx.moveTo(
+          (-14 * dirSign + offset * 0.35) * hitScale,
+          (-12 + offset) * hitScale
+        );
+        ctx.lineTo(
+          (16 * dirSign + offset * 0.35) * hitScale,
+          (11 + offset) * hitScale
+        );
+        ctx.stroke();
+      }
+    } else if (formId === 'dukemon') {
+      // Royal Saber golden lance thrust & cross-star flash on target mob
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 5.6 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-24 * dirSign * hitScale, 0);
+      ctx.lineTo(26 * dirSign * hitScale, 0);
+      ctx.stroke();
 
-    const coreR = Math.max(1, 9 * (1 - bp * 0.65) * hitScale);
-    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-    grad.addColorStop(0.55, profile.theme.glowRgba);
-    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3.6 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-14 * dirSign * hitScale, -14 * hitScale);
+      ctx.lineTo(16 * dirSign * hitScale, 14 * hitScale);
+      ctx.moveTo(-14 * dirSign * hitScale, 14 * hitScale);
+      ctx.lineTo(16 * dirSign * hitScale, -14 * hitScale);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-20 * dirSign * hitScale, 0);
+      ctx.lineTo(22 * dirSign * hitScale, 0);
+      ctx.stroke();
+    } else if (
+      formId === 'gaomon' ||
+      formId === 'gaogamon' ||
+      formId === 'machgaogamon' ||
+      formId === 'miragegaogamon'
+    ) {
+      // Sonic speed X-cross + electric crescent arc
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 4.6 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-18 * dirSign * hitScale, -12 * hitScale);
+      ctx.lineTo(19 * dirSign * hitScale, 13 * hitScale);
+      ctx.moveTo(-16 * dirSign * hitScale, 12 * hitScale);
+      ctx.lineTo(17 * dirSign * hitScale, -12 * hitScale);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-15 * dirSign * hitScale, -10 * hitScale);
+      ctx.lineTo(16 * dirSign * hitScale, 11 * hitScale);
+      ctx.moveTo(-13 * dirSign * hitScale, 10 * hitScale);
+      ctx.lineTo(14 * dirSign * hitScale, -10 * hitScale);
+      ctx.stroke();
+    } else {
+      // Flora / Rosemon whip arc + vibrant nature slash
+      ctx.strokeStyle = profile.theme.accentHex;
+      ctx.lineWidth = 4.6 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-18 * dirSign * hitScale, -11 * hitScale);
+      ctx.quadraticCurveTo(4 * dirSign * hitScale, 6 * hitScale, 20 * dirSign * hitScale, -7 * hitScale);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2 * hitScale;
+      ctx.beginPath();
+      ctx.moveTo(-15 * dirSign * hitScale, -9 * hitScale);
+      ctx.quadraticCurveTo(4 * dirSign * hitScale, 5 * hitScale, 17 * dirSign * hitScale, -6 * hitScale);
+      ctx.stroke();
+    }
+
+    // Radial flying hit sparks bursting outward on every mob impact
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let si = 0; si < 8; si++) {
+      const ang = (si / 8) * Math.PI * 2 + seededUnit(seed, si, 1) * 0.4;
+      const dist = (10 + bp * 26 * (0.75 + seededUnit(seed, si, 2) * 0.6)) * hitScale;
+      const sxp = Math.cos(ang) * dist;
+      const syp = Math.sin(ang) * dist * 0.85;
+      ctx.fillStyle = si % 2 === 0 ? '#ffffff' : profile.theme.accentHex;
+      drawFourPointStar(ctx, sxp, syp, (3.6 - bp * 1.4) * hitScale);
+    }
+    ctx.restore();
 
     ctx.restore();
     return;

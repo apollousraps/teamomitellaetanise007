@@ -556,10 +556,16 @@ const PLAYABLE_CLASSIFICATION_MAP = new Map<string, DigimonClassification>([
   ['sunflowmon', { attribute: 'DA', element: 'wood' }],
   ['lilamon', { attribute: 'DA', element: 'wood' }],
   ['rosemon', { attribute: 'DA', element: 'wood' }],
+
+  // Guilmon Evolution Line
+  ['guilmon', { attribute: 'VI', element: 'fire' }],
+  ['growlmon', { attribute: 'VI', element: 'fire' }],
+  ['megalogrowlmon', { attribute: 'VI', element: 'fire' }],
+  ['dukemon', { attribute: 'VI', element: 'light' }],
 ]);
 
 const WILD_CLASSIFICATION_MAP = new Map<string, DigimonClassification>([
-  ['pagumon', { attribute: 'VI', element: 'darkness' }],
+  ['koromon', { attribute: 'DA', element: 'fire' }],
   ['tsunomon', { attribute: 'DA', element: 'earth' }],
   ['gizamon', { attribute: 'VI', element: 'thunder' }],
   ['goblimon', { attribute: 'VI', element: 'fire' }],

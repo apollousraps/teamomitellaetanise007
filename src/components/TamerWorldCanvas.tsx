@@ -134,7 +134,7 @@ import {
 import {
   drawTamerMovementFrame,
   preloadTamerSheets,
-  TAMER_FRAME_COUNT,
+  TAMER_FRAME_WRAP,
   type CardinalDirection,
   type TamerMovementState,
 } from '../sprites/tamerRealSheets';
@@ -2190,11 +2190,11 @@ export function TamerWorldCanvas({
           sim.tapTarget = null;
         }
 
-        const walkFrameRate = 9.5;
+        const walkFrameRate = 11.5;
         sim.frameTime += dt;
         if (sim.frameTime >= 1 / walkFrameRate) {
           sim.frameTime = 0;
-          sim.frameIndex = (sim.frameIndex + 1) % TAMER_FRAME_COUNT;
+          sim.frameIndex = (sim.frameIndex + 1) % TAMER_FRAME_WRAP;
         }
       } else {
         if (sim.state === 'walk') {
@@ -2207,7 +2207,7 @@ export function TamerWorldCanvas({
         sim.frameTime += dt;
         if (sim.frameTime >= 0.36) {
           sim.frameTime = 0;
-          sim.frameIndex = (sim.frameIndex + 1) % TAMER_FRAME_COUNT;
+          sim.frameIndex = (sim.frameIndex + 1) % TAMER_FRAME_WRAP;
         }
       }
 
@@ -2895,7 +2895,17 @@ export function TamerWorldCanvas({
       ctx!.translate(-sim.camX, -sim.camY);
 
       if (isDataForest) {
-        ctx!.drawImage(dataForestGroundCanvas, 0, 0);
+        ctx!.save();
+        ctx!.imageSmoothingEnabled = true;
+        ctx!.imageSmoothingQuality = 'high';
+        ctx!.drawImage(
+          dataForestGroundCanvas,
+          0,
+          0,
+          DATA_FOREST_WORLD_W,
+          DATA_FOREST_WORLD_H
+        );
+        ctx!.restore();
         drawDataForestGroundAnimations(
           ctx!,
           elapsed,
@@ -2903,7 +2913,17 @@ export function TamerWorldCanvas({
           worldBossRef.current?.alive ?? true
         );
       } else if (isHunting) {
-        ctx!.drawImage(huntingGroundCanvas, 0, 0);
+        ctx!.save();
+        ctx!.imageSmoothingEnabled = true;
+        ctx!.imageSmoothingQuality = 'high';
+        ctx!.drawImage(
+          huntingGroundCanvas,
+          0,
+          0,
+          HUNTING_WORLD_W,
+          HUNTING_WORLD_H
+        );
+        ctx!.restore();
         drawHuntingGroundAnimations(ctx!, elapsed, sim.nearReturnPortal);
       } else {
         ctx!.drawImage(datsGroundCanvas, 0, 0);
@@ -3085,9 +3105,9 @@ export function TamerWorldCanvas({
         const isRemoteWalking = rp.moveState === 'walk' || tDist > 6;
         if (isRemoteWalking) {
           smooth.frameTime += dt;
-          if (smooth.frameTime >= 0.14) {
+          if (smooth.frameTime >= 0.095) {
             smooth.frameTime = 0;
-            smooth.frameIndex = (smooth.frameIndex + 1) % TAMER_FRAME_COUNT;
+            smooth.frameIndex = (smooth.frameIndex + 1) % TAMER_FRAME_WRAP;
           }
         } else {
           smooth.frameTime = 0;
@@ -3219,19 +3239,54 @@ export function TamerWorldCanvas({
             }
 
             ctx!.save();
+            ctx!.fillStyle = 'rgba(0, 0, 0, 0.22)';
+            ctx!.beginPath();
+            ctx!.ellipse(
+              rpX,
+              rpY + 1.5,
+              rDims.shadowRx * 1.06,
+              rDims.shadowRy * 1.06,
+              0,
+              0,
+              Math.PI * 2
+            );
+            ctx!.fill();
             ctx!.fillStyle = 'rgba(0, 0, 0, 0.34)';
             ctx!.beginPath();
             ctx!.ellipse(
               rpX,
-              rpY + 2,
-              rDims.shadowRx,
-              rDims.shadowRy,
+              rpY + 1,
+              rDims.shadowRx * 0.78,
+              rDims.shadowRy * 0.72,
               0,
               0,
               Math.PI * 2
             );
             ctx!.fill();
             ctx!.restore();
+
+            if (isRemotePartnerMoving) {
+              const stepVector =
+                rp.partnerDir === 'W'
+                  ? { vx: 1, vy: 0.1 }
+                  : rp.partnerDir === 'E'
+                    ? { vx: -1, vy: 0.1 }
+                    : rp.partnerDir === 'N'
+                      ? { vx: 0, vy: 1 }
+                      : { vx: 0, vy: -0.6 };
+              ctx!.save();
+              for (let di = 0; di < 3; di++) {
+                const phase = (elapsed * 3.8 + di * 0.33) % 1;
+                const px = rpX + stepVector.vx * (10 + phase * 26) + (di - 1) * 5;
+                const py = rpY + stepVector.vy * (4 + phase * 14) - phase * 6;
+                ctx!.globalAlpha = (1 - phase) * 0.42;
+                ctx!.fillStyle = di === 1 ? rForm.theme.accentHex : 'rgba(226, 232, 240, 0.85)';
+                ctx!.beginPath();
+                ctx!.arc(px, py, Math.max(1.5, (1 - phase) * 5.2), 0, Math.PI * 2);
+                ctx!.fill();
+              }
+              ctx!.restore();
+            }
 
             drawDigimonPartnerFrame(
               ctx!,
@@ -3281,13 +3336,25 @@ export function TamerWorldCanvas({
           }
 
           ctx!.save();
-          ctx!.fillStyle = 'rgba(0, 0, 0, 0.36)';
+          ctx!.fillStyle = 'rgba(0, 0, 0, 0.24)';
           ctx!.beginPath();
           ctx!.ellipse(
             sim.partner.x,
-            sim.partner.y + 2,
-            dims.shadowRx,
-            dims.shadowRy,
+            sim.partner.y + 1.5,
+            dims.shadowRx * 1.08,
+            dims.shadowRy * 1.08,
+            0,
+            0,
+            Math.PI * 2
+          );
+          ctx!.fill();
+          ctx!.fillStyle = 'rgba(0, 0, 0, 0.38)';
+          ctx!.beginPath();
+          ctx!.ellipse(
+            sim.partner.x,
+            sim.partner.y + 1,
+            dims.shadowRx * 0.78,
+            dims.shadowRy * 0.74,
             0,
             0,
             Math.PI * 2
@@ -3322,6 +3389,31 @@ export function TamerWorldCanvas({
               Math.PI * 2
             );
             ctx!.stroke();
+            ctx!.restore();
+          }
+
+          if (sim.partner.isMoving && !sim.partner.activeAttack) {
+            const stepVector =
+              sim.partner.dir === 'W'
+                ? { vx: 1, vy: 0.1 }
+                : sim.partner.dir === 'E'
+                  ? { vx: -1, vy: 0.1 }
+                  : sim.partner.dir === 'N'
+                    ? { vx: 0, vy: 1 }
+                    : { vx: 0, vy: -0.6 };
+            ctx!.save();
+            for (let di = 0; di < 4; di++) {
+              const phase = (elapsed * 4.2 + di * 0.25) % 1;
+              const spread = Math.sin(di * 2.1 + elapsed * 7) * 5;
+              const px = sim.partner.x + stepVector.vx * (10 + phase * 28) + spread;
+              const py = sim.partner.y + stepVector.vy * (4 + phase * 15) - phase * 7;
+              ctx!.globalAlpha = (1 - phase) * 0.48;
+              ctx!.fillStyle =
+                di % 2 === 0 ? renderForm.theme.accentHex : 'rgba(241, 245, 249, 0.88)';
+              ctx!.beginPath();
+              ctx!.arc(px, py, Math.max(1.6, (1 - phase) * 5.6), 0, Math.PI * 2);
+              ctx!.fill();
+            }
             ctx!.restore();
           }
 
@@ -4358,10 +4450,29 @@ export function TamerWorldCanvas({
         </div>
       )}
 
-      {/* LOWER HUD LAYER: Bottom-Left Chat + Mobile Joystick */}
+      {/* LOWER HUD LAYER: Bottom-Left GM Button + Chat + Mobile Joystick */}
       <div className="pointer-events-none absolute inset-x-0 bottom-2.5 z-25 flex items-end justify-between gap-2 px-2 sm:bottom-3.5 sm:px-4">
-        {/* Bottom-Left Corner: Chat stacked cleanly ABOVE Mobile Virtual Joystick */}
-        <div className="flex flex-col items-start gap-2">
+        {/* Bottom-Left Corner: GM Button + Chat stacked cleanly ABOVE Mobile Virtual Joystick */}
+        <div className="flex flex-col items-start gap-1.5 sm:gap-2">
+          {isGM && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={() => handleOpenHudWindow('admin')}
+              aria-label="Abrir Painel GM"
+              aria-pressed={activeHudWindow === 'admin'}
+              title="Painel GM (F9)"
+              className={`pointer-events-auto flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-black tracking-wide transition active:scale-95 ${
+                activeHudWindow === 'admin'
+                  ? 'border-amber-200 bg-gradient-to-b from-[#7c3f08] via-[#4a2304] to-[#291102] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.72)]'
+                  : 'border-amber-300/85 bg-gradient-to-b from-[#4a2605]/95 via-[#2a1503]/95 to-[#160a02]/95 text-amber-200 shadow-[0_0_16px_rgba(251,191,36,0.45)] hover:border-amber-200 hover:brightness-110'
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5 text-amber-300" />
+              <span>GM</span>
+            </button>
+          )}
           <ChatHudPanel
             messages={chatMessages}
             activeChannel={chatChannel}

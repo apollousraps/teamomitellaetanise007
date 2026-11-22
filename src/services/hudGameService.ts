@@ -183,6 +183,12 @@ export const DIGIMON_EVOLUTION_CHAINS: Record<
     { formId: 'lilamon', stage: 'Ultimate', name: 'Lilamon', unlockLevel: 30, playable: true },
     { formId: 'rosemon', stage: 'Mega', name: 'Rosemon', unlockLevel: 50, playable: true },
   ],
+  guilmon: [
+    { formId: 'guilmon', stage: 'Rookie', name: 'Guilmon', unlockLevel: 1, playable: true },
+    { formId: 'growlmon', stage: 'Champion', name: 'Growlmon', unlockLevel: 15, playable: true },
+    { formId: 'megalogrowlmon', stage: 'Ultimate', name: 'WarGrowlmon', unlockLevel: 30, playable: true },
+    { formId: 'dukemon', stage: 'Mega', name: 'Dukemon', unlockLevel: 50, playable: true },
+  ],
 };
 
 /**

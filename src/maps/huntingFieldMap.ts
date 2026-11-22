@@ -1,6 +1,10 @@
 import type { DatsCollider, DatsInteractionPoint } from './datsCenterMap';
 import type { FixedWorldNpc } from '../sprites/npcSprites';
 import { drawWildDigimonSprite } from '../sprites/wildDigimonSprites';
+import {
+  applyContrastAdaptiveSharpen,
+  MAP_HIDPI_SCALE,
+} from '../utils/canvasSharpen';
 
 export const HUNTING_MAP_ID = 'hunting-plains' as const;
 
@@ -69,11 +73,11 @@ export const HUNTING_EXPLORATION_ZONES: readonly HuntingExplorationZone[] = [
   {
     id: 'zone-forest',
     name: 'Floresta Digital',
-    subtitle: 'Território dos Pagumon (Nv. 1–2)',
+    subtitle: 'Território dos Koromon (Nv. 1–2)',
     x: 565,
     y: 525,
     radius: 215,
-    speciesLabel: 'Pagumon',
+    speciesLabel: 'Koromon',
   },
   {
     id: 'zone-meadow',
@@ -168,7 +172,7 @@ export const HUNTING_INTERACTION_POINTS: readonly DatsInteractionPoint[] = [
 ] as const;
 
 export type WildMonsterSpecies =
-  | 'pagumon'
+  | 'koromon'
   | 'tsunomon'
   | 'gizamon'
   | 'goblimon'
@@ -233,7 +237,7 @@ export const FRIENDLY_FIELD_NPCS: readonly FriendlyFieldNpc[] = [
     x: 1095,
     y: 528,
     dialogue:
-      'Bem-vindo à Planície Digital (Nv. 1–10)! Evolua aos poucos: comece nos Pagumon (Nv. 1–2) na Floresta, depois Tsunomon (Nv. 3–4) na Pradaria Leste, Gizamon (Nv. 5–6) no Lago, Goblimon (Nv. 7–8) nas Ruínas e DemiDevimon (Nv. 9–10) na Caverna!',
+      'Bem-vindo à Planície Digital (Nv. 1–10)! Evolua aos poucos: comece nos Koromon (Nv. 1–2) na Floresta, depois Tsunomon (Nv. 3–4) na Pradaria Leste, Gizamon (Nv. 5–6) no Lago, Goblimon (Nv. 7–8) nas Ruínas e DemiDevimon (Nv. 9–10) na Caverna!',
   },
 ] as const;
 
@@ -397,8 +401,8 @@ export interface HuntingHabitatPackSpec {
  */
 export const HUNTING_HABITAT_PACKS: readonly HuntingHabitatPackSpec[] = [
   {
-    species: 'pagumon',
-    displayName: 'Pagumon',
+    species: 'koromon',
+    displayName: 'Koromon',
     habitatName: 'Floresta Digital (Noroeste)',
     zoneId: 'zone-forest',
     levelMin: 1,
@@ -407,9 +411,9 @@ export const HUNTING_HABITAT_PACKS: readonly HuntingHabitatPackSpec[] = [
     hpPerLevel: 35,
     baseExp: 24,
     expPerLevel: 8,
-    bodyColor: '#6d28d9',
-    accentColor: '#c084fc',
-    eyeColor: '#f43f5e',
+    bodyColor: '#f9a8d4',
+    accentColor: '#fce7f3',
+    eyeColor: '#dc2626',
     spawns: [
       [415, 488],
       [508, 474],
@@ -638,7 +642,7 @@ function paintCrispMobileTerrainDetails(ctx: CanvasRenderingContext2D): void {
 
   // 4. Subtle sunlit trail stepping stones connecting Safe Zone to the 5 habitats
   const steppingStones: ReadonlyArray<readonly [number, number, number]> = [
-    // West trail -> Pagumon Forest
+    // West trail -> Koromon Forest
     [1018, 498, 9], [966, 502, 8], [912, 504, 9], [856, 506, 8], [800, 505, 9], [748, 508, 8],
     // East trail -> Tsunomon Meadow
     [1362, 504, 9], [1406, 510, 8], [1458, 520, 8], [1508, 526, 8],
@@ -668,7 +672,7 @@ function paintCrispMobileTerrainDetails(ctx: CanvasRenderingContext2D): void {
   // 5. Crisp high-DPI grass tufts & wildflowers across all 5 hunting grounds
   // (Deterministic coordinates so every frame has zero jitter and looks crystal-clear on mobile Retina!)
   const floraSpots: ReadonlyArray<readonly [number, number, string]> = [
-    // Floresta Digital (Pagumon)
+    // Floresta Digital (Koromon)
     [392, 522, '#c4b5fd'], [478, 456, '#fde047'], [566, 514, '#e9d5ff'], [664, 518, '#a7f3d0'],
     [742, 488, '#fef08a'], [422, 594, '#c4b5fd'], [590, 596, '#86efac'], [696, 588, '#e9d5ff'],
     // Pradaria Leste (Tsunomon)
@@ -731,7 +735,7 @@ function paintCrispMobileTerrainDetails(ctx: CanvasRenderingContext2D): void {
   ctx.ellipse(1865, 455, 240, 125, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Soft sunlit emerald glow in Floresta Digital (Pagumon)
+  // Soft sunlit emerald glow in Floresta Digital (Koromon)
   const forestGlow = ctx.createRadialGradient(565, 520, 24, 565, 520, 220);
   forestGlow.addColorStop(0, 'rgba(134, 239, 172, 0.13)');
   forestGlow.addColorStop(1, 'rgba(134, 239, 172, 0)');
@@ -758,33 +762,42 @@ function paintCrispMobileTerrainDetails(ctx: CanvasRenderingContext2D): void {
  * vector details so mobile screens look sharp and alive just like DATS Center.
  */
 export function buildHuntingFieldStaticLayer(): HTMLCanvasElement {
+  const pixelW = Math.round(HUNTING_WORLD_W * MAP_HIDPI_SCALE);
+  const pixelH = Math.round(HUNTING_WORLD_H * MAP_HIDPI_SCALE);
   const canvas = document.createElement('canvas');
-  canvas.width = HUNTING_WORLD_W;
-  canvas.height = HUNTING_WORLD_H;
+  canvas.width = pixelW;
+  canvas.height = pixelH;
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
   // Deep sky-ocean fallback painted instantly for frame 0 before image decode resolves
-  const fallbackGrad = ctx.createLinearGradient(0, 0, 0, HUNTING_WORLD_H);
+  const fallbackGrad = ctx.createLinearGradient(0, 0, 0, pixelH);
   fallbackGrad.addColorStop(0, '#0745b8');
   fallbackGrad.addColorStop(0.5, '#0c63d4');
   fallbackGrad.addColorStop(1, '#04328c');
   ctx.fillStyle = fallbackGrad;
-  ctx.fillRect(0, 0, HUNTING_WORLD_W, HUNTING_WORLD_H);
+  ctx.fillRect(0, 0, pixelW, pixelH);
 
   const img = new Image();
   img.decoding = 'async';
   img.src = HUNTING_MAP_IMAGE_URL;
   img.onload = () => {
-    ctx.clearRect(0, 0, HUNTING_WORLD_W, HUNTING_WORLD_H);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pixelW, pixelH);
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     // Crisp vibrant clarity on OLED / Retina mobile displays
     ctx.filter = 'contrast(1.07) saturate(1.13) brightness(1.02)';
-    ctx.drawImage(img, 0, 0, HUNTING_WORLD_W, HUNTING_WORLD_H);
+    ctx.drawImage(img, 0, 0, pixelW, pixelH);
     ctx.restore();
+
+    applyContrastAdaptiveSharpen(ctx, pixelW, pixelH, 1.08);
+
+    ctx.save();
+    ctx.scale(MAP_HIDPI_SCALE, MAP_HIDPI_SCALE);
     paintCrispMobileTerrainDetails(ctx);
+    ctx.restore();
   };
 
   return canvas;
@@ -1085,7 +1098,7 @@ export function buildHuntingDepthProps(): HuntingDepthDrawable[] {
 
 /**
  * Draws an Enemy Wild Digimon monster with 2.5D perspective scaling, real uploaded
- * pixel-art sprites (Goblimon, Tsunomon, Gizamon, Pagumon, DemiDevimon),
+ * 3D DMO sprites (Goblimon, Tsunomon, Gizamon, Koromon, DemiDevimon),
  * attack/hit poses, and a clean HP bar + nameplate anchored above the monster's head.
  */
 export function drawEnemyMonster(
@@ -1225,10 +1238,10 @@ export function drawEnemyMonster(
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-  } else if (enemy.species === 'pagumon') {
+  } else if (enemy.species === 'koromon') {
     ctx.beginPath();
-    ctx.ellipse(-16, -22 + bob, 9, 5, -0.4, 0, Math.PI * 2);
-    ctx.ellipse(16, -22 + bob, 9, 5, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(-11, -35 + bob, 4.5, 11, -0.35, 0, Math.PI * 2);
+    ctx.ellipse(11, -35 + bob, 4.5, 11, 0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else if (enemy.species === 'tsunomon') {

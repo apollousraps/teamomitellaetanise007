@@ -546,7 +546,7 @@ export function DigimonSelectScreen({
         <div
           role="radiogroup"
           aria-label="Digimons iniciais disponíveis"
-          className="grid grid-cols-3 gap-1.5 sm:gap-3"
+          className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3"
         >
           {STARTER_DIGIMONS.map((starter) => {
             const isSelected = starter.id === selectedId;

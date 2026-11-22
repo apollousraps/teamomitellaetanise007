@@ -239,7 +239,11 @@
             "lalamon",
             "sunflowmon",
             "lilamon",
-            "rosemon"
+            "rosemon",
+            "guilmon",
+            "growlmon",
+            "megalogrowlmon",
+            "dukemon"
           ],
           "description": "Active Partner Digimon evolution form ID."
         },

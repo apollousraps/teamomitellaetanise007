@@ -1,25 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Lock,
-  Shield,
-  Sparkles,
   User,
   X,
-  Zap,
 } from 'lucide-react';
 import {
   computeTamerAttributes,
   EQUIPMENT_SLOT_LABELS,
-  SKILL_F1_DS_COST,
-  SKILL_F2_DS_COST,
 } from '../../services/hudGameService';
 import {
   drawTamerMovementFrame,
   preloadTamerSheets,
-  TAMER_FRAME_COUNT,
+  TAMER_FRAME_WRAP,
   type CardinalDirection,
 } from '../../sprites/tamerRealSheets';
 import type { TamerCharacter } from '../../types/character';
@@ -448,7 +442,7 @@ function TamerPreviewStage({
         frameTimer += dt;
         if (frameTimer >= 0.34) {
           frameTimer = 0;
-          frameIndex = (frameIndex + 1) % TAMER_FRAME_COUNT;
+          frameIndex = (frameIndex + 1) % TAMER_FRAME_WRAP;
         }
 
         const w = 230;
@@ -648,35 +642,6 @@ function TamerPreviewStage({
   );
 }
 
-interface TamerSkillEntry {
-  id: string;
-  name: string;
-  unlocked: boolean;
-  levelLabel: string;
-  dsCostLabel: string;
-  cooldownLabel: string;
-  description: string;
-  effectSummary: string;
-  iconKind: 'synergy' | 'digisoul' | 'tactics' | 'locked-active-1' | 'locked-active-2';
-}
-
-function SkillIcon({ kind, unlocked }: { kind: TamerSkillEntry['iconKind']; unlocked: boolean }) {
-  const baseBox = unlocked
-    ? 'border-[#5ef0ff]/85 bg-gradient-to-b from-[#0e42b0] to-[#04194d] shadow-[0_0_12px_rgba(56,232,255,0.45)]'
-    : 'border-slate-600/70 bg-gradient-to-b from-[#081942] to-[#030b24] opacity-75';
-
-  return (
-    <div className={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-lg border sm:h-11 sm:w-11 ${baseBox}`}>
-      {kind === 'synergy' && <Sparkles className="h-4 w-4 text-amber-300 sm:h-5 sm:w-5" />}
-      {kind === 'digisoul' && <Zap className="h-4 w-4 text-cyan-300 sm:h-5 sm:w-5" />}
-      {kind === 'tactics' && <Shield className="h-4 w-4 text-sky-300 sm:h-5 sm:w-5" />}
-      {(kind === 'locked-active-1' || kind === 'locked-active-2') && (
-        <Lock className="h-3.5 w-3.5 text-slate-400 sm:h-4.5 sm:w-4.5" />
-      )}
-    </div>
-  );
-}
-
 export function TamerCharacterModal({
   character,
   tamerName,
@@ -690,7 +655,6 @@ export function TamerCharacterModal({
 }: TamerCharacterModalProps) {
   const [activeTab, setActiveTab] = useState<CharacterTabId>('perfil');
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlotId>('head');
-  const [selectedSkillId, setSelectedSkillId] = useState<string>('synergy');
   const [dirIndex, setDirIndex] = useState(0);
 
   useEffect(() => {
@@ -758,76 +722,6 @@ export function TamerCharacterModal({
     [equippedItems]
   );
 
-  /* Real system-grounded Tamer passive abilities + locked future active slots (zero invented skills) */
-  const tamerSkills = useMemo<TamerSkillEntry[]>(
-    () => [
-      {
-        id: 'synergy',
-        name: 'Sinergia de Parceiro',
-        unlocked: true,
-        levelLabel: `Nv. ${tamerStats.level}`,
-        dsCostLabel: 'Passiva (0 DS)',
-        cooldownLabel: 'Contínua',
-        description:
-          'Converte automaticamente 25% do Ataque e da Defesa do Tamer em bônus direto para o Digimon parceiro em combate.',
-        effectSummary: `Transfere +${Math.round(attrs.attack * 0.25)} AT e +${Math.round(attrs.defense * 0.25)} DE ao parceiro ativo.`,
-        iconKind: 'synergy',
-      },
-      {
-        id: 'digisoul',
-        name: 'Sincronização DigiSoul',
-        unlocked: true,
-        levelLabel: `Nv. ${tamerStats.level}`,
-        dsCostLabel: `Reserva: ${Math.round(attrs.ds)}/${attrs.maxDs} DS`,
-        cooldownLabel: 'Contínua',
-        description:
-          'Mantém a reserva de DigiSoul disponível para sustentar comandos de batalha e técnicas especiais do parceiro.',
-        effectSummary: `Suporta habilidades F1 (${SKILL_F1_DS_COST} DS) e F2 (${SKILL_F2_DS_COST} DS) do Digimon.`,
-        iconKind: 'digisoul',
-      },
-      {
-        id: 'tactics',
-        name: 'Comando Tático de Campo',
-        unlocked: true,
-        levelLabel: `Nv. ${tamerStats.level}`,
-        dsCostLabel: 'Passiva (0 DS)',
-        cooldownLabel: 'Contínua',
-        description:
-          'Aplica a precisão, taxa crítica, evasão e velocidade acumuladas do Tamer durante exploração e enfrentamentos.',
-        effectSummary: `${attrs.accuracy} HT · ${attrs.critRate.toFixed(1)}% CT · ${attrs.evasion.toFixed(1)}% EV · ${attrs.speed} Vel.`,
-        iconKind: 'tactics',
-      },
-      {
-        id: 'locked-1',
-        name: 'Habilidade Ativa I',
-        unlocked: false,
-        levelLabel: 'Bloqueada',
-        dsCostLabel: 'Não definida',
-        cooldownLabel: 'Não definida',
-        description:
-          'Espaço reservado para futura habilidade ativa de Tamer. Nenhuma habilidade ativa foi adicionada ao sistema ainda.',
-        effectSummary: 'Será liberada quando o sistema de habilidades ativas de Tamer for adicionado.',
-        iconKind: 'locked-active-1',
-      },
-      {
-        id: 'locked-2',
-        name: 'Habilidade Ativa II',
-        unlocked: false,
-        levelLabel: 'Bloqueada',
-        dsCostLabel: 'Não definida',
-        cooldownLabel: 'Não definida',
-        description:
-          'Espaço reservado para futura habilidade especial de Tamer. Nenhuma habilidade ativa foi adicionada ao sistema ainda.',
-        effectSummary: 'Será liberada quando o sistema de habilidades ativas de Tamer for adicionado.',
-        iconKind: 'locked-active-2',
-      },
-    ],
-    [attrs.accuracy, attrs.attack, attrs.critRate, attrs.defense, attrs.ds, attrs.evasion, attrs.maxDs, attrs.speed, tamerStats.level]
-  );
-
-  const selectedSkill =
-    tamerSkills.find((s) => s.id === selectedSkillId) ?? tamerSkills[0];
-
   const handlePerfilSlotClick = (slot: EquipmentSlotId) => {
     setSelectedSlot(slot);
     setActiveTab('equipamentos');
@@ -888,30 +782,40 @@ export function TamerCharacterModal({
               <div role="tablist" aria-label="Abas de Personagem" className="grid grid-cols-3 gap-1 sm:gap-2.5">
                 {(
                   [
-                    { id: 'perfil', label: 'Perfil' },
-                    { id: 'equipamentos', label: 'Equipamentos' },
-                    { id: 'habilidades', label: 'Habilidades' },
+                    { id: 'perfil', label: 'Perfil', locked: false },
+                    { id: 'equipamentos', label: 'Equipamentos', locked: false },
+                    { id: 'habilidades', label: 'Habilidades', locked: true },
                   ] as const
                 ).map((tab) => {
                   const isActive = activeTab === tab.id;
+                  const isLocked = tab.locked;
                   return (
                     <button
                       key={tab.id}
                       type="button"
                       role="tab"
                       aria-selected={isActive}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`clip-cyber-tab flex min-h-[30px] items-center justify-center p-[1.5px] transition-all duration-150 focus-visible:outline-2 focus-visible:outline-cyan-300 sm:min-h-[40px] [@media(max-height:500px)]:min-h-[28px] ${
-                        isActive
-                          ? 'bg-gradient-to-b from-[#fff7b2] via-[#fbbf24] to-[#d97706] shadow-[0_0_16px_rgba(250,204,21,0.55)]'
-                          : 'bg-gradient-to-b from-[#66e6ff] via-[#1f9cff] to-[#0c47a8] hover:brightness-115'
+                      aria-disabled={isLocked}
+                      disabled={isLocked}
+                      title={isLocked ? 'Em Desenvolvimento' : undefined}
+                      onClick={() => {
+                        if (!isLocked) setActiveTab(tab.id);
+                      }}
+                      className={`clip-cyber-tab flex min-h-[34px] items-center justify-center p-[1.5px] transition-all duration-150 focus-visible:outline-2 focus-visible:outline-cyan-300 sm:min-h-[42px] [@media(max-height:500px)]:min-h-[30px] ${
+                        isLocked
+                          ? 'cursor-not-allowed bg-gradient-to-b from-slate-500/80 via-slate-600/80 to-slate-800/90 opacity-80'
+                          : isActive
+                            ? 'bg-gradient-to-b from-[#fff7b2] via-[#fbbf24] to-[#d97706] shadow-[0_0_16px_rgba(250,204,21,0.55)]'
+                            : 'bg-gradient-to-b from-[#66e6ff] via-[#1f9cff] to-[#0c47a8] hover:brightness-115'
                       }`}
                     >
                       <span
-                        className={`clip-cyber-tab flex h-full w-full items-center justify-center gap-1 px-1.5 text-[10.5px] font-extrabold italic tracking-wide whitespace-nowrap sm:gap-1.5 sm:px-2 sm:text-[13.5px] [@media(max-height:500px)]:text-[10.5px] ${
-                          isActive
-                            ? 'bg-gradient-to-b from-[#ffe259] via-[#f59e0b] to-[#d97706] text-[#241403]'
-                            : 'bg-gradient-to-b from-[#0b3b99] to-[#04184b] text-white'
+                        className={`clip-cyber-tab flex h-full w-full items-center justify-center gap-1 px-1.5 font-extrabold italic tracking-wide whitespace-nowrap sm:gap-1.5 sm:px-2 ${
+                          isLocked
+                            ? 'flex-col gap-0 bg-gradient-to-b from-[#0b1b3d] to-[#040c21] py-0.5 text-slate-300 sm:flex-row sm:gap-1.5'
+                            : isActive
+                              ? 'bg-gradient-to-b from-[#ffe259] via-[#f59e0b] to-[#d97706] text-[10.5px] text-[#241403] sm:text-[13.5px] [@media(max-height:500px)]:text-[10.5px]'
+                              : 'bg-gradient-to-b from-[#0b3b99] to-[#04184b] text-[10.5px] text-white sm:text-[13.5px] [@media(max-height:500px)]:text-[10.5px]'
                         }`}
                       >
                         {tab.id === 'perfil' && (
@@ -932,16 +836,18 @@ export function TamerCharacterModal({
                           </svg>
                         )}
                         {tab.id === 'habilidades' && (
-                          <svg
-                            viewBox="0 0 24 24"
-                            className={`h-3 w-3 shrink-0 sm:h-4 sm:w-4 ${
-                              isActive ? 'fill-[#241403]' : 'fill-[#7af2ff]'
-                            }`}
-                          >
-                            <path d="M2 7l5.5 2.2L12 3l4.5 6.2L22 7l-2.8 7.5L12 20l-7.2-5.5L2 7z" />
-                          </svg>
+                          <span className="flex items-center gap-1 text-[9.5px] leading-none text-slate-300 sm:text-[12.5px]">
+                            <Lock className="h-2.5 w-2.5 shrink-0 text-amber-300 sm:h-3.5 sm:w-3.5" />
+                            <span>{tab.label}</span>
+                          </span>
                         )}
-                        <span>{tab.label}</span>
+                        {tab.id !== 'habilidades' ? (
+                          <span>{tab.label}</span>
+                        ) : (
+                          <span className="not-italic text-[7px] font-black uppercase leading-none tracking-wider text-amber-300/95 sm:rounded sm:border sm:border-amber-300/40 sm:bg-amber-500/15 sm:px-1.5 sm:py-[2px] sm:text-[8.5px]">
+                            Em Desenvolvimento
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
@@ -1469,128 +1375,22 @@ export function TamerCharacterModal({
                 </div>
               )}
 
-              {/* ===================== 6. ABA HABILIDADES ===================== */}
+              {/* ===================== 6. ABA HABILIDADES (BLOQUEADA) ===================== */}
               {activeTab === 'habilidades' && (
-                <div role="tabpanel" aria-label="Habilidades" className="animate-dmo-tab grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-12">
-                  {/* Lista de Habilidades (Desbloqueadas vs Bloqueadas) */}
-                  <div className="flex flex-col gap-1.5 rounded-xl border border-[#38c4ff]/75 bg-[#041238]/92 p-2 sm:gap-2 sm:p-3 md:col-span-7">
-                    <div className="flex items-center justify-between border-b border-cyan-400/25 pb-1 text-[11px] sm:pb-1.5 sm:text-xs">
-                      <span className="font-extrabold italic text-white">
-                        Capacidades & Habilidades do Tamer
-                      </span>
-                      <span className="font-bold tabular-nums text-cyan-300">
-                        {tamerSkills.filter((s) => s.unlocked).length}/{tamerSkills.length} ativas
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 sm:space-y-1.5">
-                      {tamerSkills.map((skill) => {
-                        const isSelected = selectedSkill.id === skill.id;
-                        return (
-                          <button
-                            key={skill.id}
-                            type="button"
-                            onClick={() => setSelectedSkillId(skill.id)}
-                            className={`flex min-h-[46px] w-full items-center gap-2 rounded-xl border p-1.5 text-left transition-all sm:min-h-[58px] sm:gap-2.5 sm:p-2 ${
-                              isSelected
-                                ? 'border-amber-300 bg-[#103891] shadow-[0_0_12px_rgba(251,191,36,0.4)]'
-                                : skill.unlocked
-                                  ? 'border-cyan-400/40 bg-[#061c52] hover:border-cyan-300'
-                                  : 'border-slate-700/80 bg-[#030d28]/90 opacity-80 hover:border-slate-500'
-                            }`}
-                          >
-                            <SkillIcon kind={skill.iconKind} unlocked={skill.unlocked} />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span
-                                  className={`truncate text-[11px] font-extrabold sm:text-xs ${
-                                    skill.unlocked ? 'text-white' : 'text-slate-300'
-                                  }`}
-                                >
-                                  {skill.name}
-                                </span>
-                                <span
-                                  className={`shrink-0 text-[9.5px] font-bold sm:text-[10px] ${
-                                    skill.unlocked ? 'text-emerald-300' : 'text-slate-400'
-                                  }`}
-                                >
-                                  {skill.unlocked ? 'Desbloqueada' : 'Bloqueada'}
-                                </span>
-                              </div>
-                              <p className="mt-0.5 truncate text-[9.5px] text-cyan-200/85 sm:text-[10.5px]">
-                                {skill.levelLabel} · {skill.dsCostLabel} · {skill.cooldownLabel}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div
+                  role="tabpanel"
+                  aria-label="Habilidades — Em Desenvolvimento"
+                  className="animate-dmo-tab flex min-h-[220px] flex-col items-center justify-center gap-2.5 rounded-xl border border-slate-600/75 bg-[#041238]/92 p-6 text-center"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/60 bg-amber-500/15 shadow-[0_0_16px_rgba(251,191,36,0.25)]">
+                    <Lock className="h-6 w-6 text-amber-300" />
                   </div>
-
-                  {/* Inspetor da Habilidade Selecionada */}
-                  <div className="flex flex-col justify-between gap-2 rounded-xl border border-[#38c4ff]/75 bg-[#041238]/92 p-2 text-xs sm:gap-3 sm:p-3 md:col-span-5">
-                    <div>
-                      <div className="flex items-center gap-2 border-b border-cyan-400/30 pb-1.5 sm:gap-2.5 sm:pb-2.5">
-                        <SkillIcon
-                          kind={selectedSkill.iconKind}
-                          unlocked={selectedSkill.unlocked}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-black italic text-white sm:text-sm">
-                            {selectedSkill.name}
-                          </p>
-                          <p
-                            className={`mt-0.5 flex items-center gap-1 text-[10px] font-bold sm:text-[11px] ${
-                              selectedSkill.unlocked ? 'text-emerald-300' : 'text-slate-400'
-                            }`}
-                          >
-                            {selectedSkill.unlocked ? (
-                              <CheckCircle2 className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                            ) : (
-                              <Lock className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                            )}
-                            <span>
-                              {selectedSkill.unlocked ? 'Desbloqueada' : 'Bloqueada'}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-2 space-y-1 rounded-lg border border-cyan-400/20 bg-[#030e2c] p-2 text-[10.5px] sm:mt-2.5 sm:space-y-1.5 sm:p-2.5 sm:text-[11px]">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-cyan-200">Nível</span>
-                          <span className="font-extrabold tabular-nums text-white">
-                            {selectedSkill.levelLabel}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-cyan-200">Custo de DS</span>
-                          <span className="font-extrabold tabular-nums text-white">
-                            {selectedSkill.dsCostLabel}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-cyan-200">Recarga</span>
-                          <span className="font-extrabold tabular-nums text-white">
-                            {selectedSkill.cooldownLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="mt-2 text-[10.5px] leading-relaxed text-slate-200 sm:mt-2.5 sm:text-[11.5px]">
-                        {selectedSkill.description}
-                      </p>
-                    </div>
-
-                    <div className="rounded-lg border border-cyan-400/30 bg-[#061c52] p-2 sm:p-2.5">
-                      <p className="text-[10px] font-bold text-cyan-300 sm:text-[10.5px]">
-                        Efeito no Sistema Atual
-                      </p>
-                      <p className="mt-0.5 text-[10.5px] font-semibold tabular-nums text-white sm:text-[11px]">
-                        {selectedSkill.effectSummary}
-                      </p>
-                    </div>
-                  </div>
+                  <p className="text-sm font-black uppercase tracking-wider text-amber-200">
+                    Em Desenvolvimento
+                  </p>
+                  <p className="max-w-xs text-xs text-slate-300">
+                    A aba de Habilidades do Tamer está temporariamente bloqueada e será liberada em uma próxima atualização.
+                  </p>
                 </div>
               )}
             </div>

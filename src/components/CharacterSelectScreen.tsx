@@ -27,7 +27,7 @@ import { computeTamerAttributes } from '../services/hudGameService';
 import {
   drawTamerMovementFrame,
   preloadTamerSheets,
-  TAMER_FRAME_COUNT,
+  TAMER_FRAME_WRAP,
   type CardinalDirection,
   type TamerMovementState,
 } from '../sprites/tamerRealSheets';
@@ -94,11 +94,11 @@ function AnimatedTamerCanvas({
 
     const drawFrame = (now: number) => {
       const elapsedSec = animate ? (now - startTime) / 1000 : 0;
-      const walkFps = size === 'hero' ? 6.4 : 5.2;
+      const walkFps = size === 'hero' ? 9.5 : 7.5;
       const idleFps = 2.6;
       const fps = movementState === 'walk' ? walkFps : idleFps;
       const frameIndex = animate
-        ? Math.floor(elapsedSec * fps) % TAMER_FRAME_COUNT
+        ? Math.floor(elapsedSec * fps) % TAMER_FRAME_WRAP
         : 0;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

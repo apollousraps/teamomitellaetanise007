@@ -100,9 +100,9 @@ export interface PartnerTickContext {
 }
 
 const PARTNER_RADIUS = 14;
-const FOLLOW_SPEED = 168;
-const CHASE_SPEED = 195;
-const RETURN_SPEED = 225;
+const FOLLOW_SPEED = 186;
+const CHASE_SPEED = 228;
+const RETURN_SPEED = 252;
 
 // Natural 1–2m follow spacing + Leash bounds
 const PREFERRED_FOLLOW_DIST = 64;
@@ -675,10 +675,10 @@ export function updatePartnerAI(
     }
   }
 
-  // Advance walk animation frames smoothly
+  // Advance running animation frames briskly
   if (partner.isMoving) {
     partner.frameTime += dt;
-    if (partner.frameTime >= 1 / 9.5) {
+    if (partner.frameTime >= 1 / 12.5) {
       partner.frameTime = 0;
       partner.frameIndex = (partner.frameIndex + 1) % 4;
     }

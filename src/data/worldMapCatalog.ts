@@ -216,7 +216,7 @@ export const WORLD_MAP_REGIONS: readonly WorldMapRegion[] = [
     maxLevel: 10,
     recommendedLevel: 'Lv. 1 ~ 10',
     description:
-      'Onde começa a sua jornada de caça! Ilha digital com Área Segura central e 5 territórios progressivos (8 Digimons em cada): Pagumon (Nv. 1–2), Tsunomon (Nv. 3–4), Gizamon (Nv. 5–6), Goblimon (Nv. 7–8) e DemiDevimon (Nv. 9–10).',
+      'Onde começa a sua jornada de caça! Ilha digital com Área Segura central e 5 territórios progressivos (8 Digimons em cada): Koromon (Nv. 1–2), Tsunomon (Nv. 3–4), Gizamon (Nv. 5–6), Goblimon (Nv. 7–8) e DemiDevimon (Nv. 9–10).',
     categories: ['mundo', 'regioes'],
     mapCoords: { x: 64.5, y: 55.8 },
     npcs: REAL_HUNTING_NPCS,

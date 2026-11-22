@@ -76,6 +76,10 @@ const VALID_FORMS = new Set<DigimonFormId>([
   'sunflowmon',
   'lilamon',
   'rosemon',
+  'guilmon',
+  'growlmon',
+  'megalogrowlmon',
+  'dukemon',
 ]);
 
 /**

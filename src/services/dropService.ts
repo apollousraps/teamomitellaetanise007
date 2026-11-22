@@ -54,13 +54,13 @@ export interface ApplyDropsResult {
  */
 export const DIGIMON_DROP_TABLES: Record<string, DigimonDropTableConfig> = {
   // === PLANICIE DIGITAL (Nv. 1-10) ===
-  pagumon: {
-    species: 'pagumon',
-    displayName: 'Pagumon',
+  koromon: {
+    species: 'koromon',
+    displayName: 'Koromon',
     maxDropsPerKill: 2,
     entries: [
-      { itemKey: 'data_devil', chance: 0.045, minQuantity: 1, maxQuantity: 1, rollGroup: 'data', enabled: true },
-      { itemKey: 'digiegg_devil', chance: 0.015, minQuantity: 1, maxQuantity: 1, rollGroup: 'egg', enabled: false },
+      { itemKey: 'data_dragon', chance: 0.045, minQuantity: 1, maxQuantity: 1, rollGroup: 'data', enabled: true },
+      { itemKey: 'digiegg_dragon', chance: 0.015, minQuantity: 1, maxQuantity: 1, rollGroup: 'egg', enabled: false },
       { itemKey: 'chip_hp_small', chance: 0.14, minQuantity: 1, maxQuantity: 1, rollGroup: 'consumable', enabled: true },
       { itemKey: 'disk_ds_small', chance: 0.11, minQuantity: 1, maxQuantity: 1, rollGroup: 'consumable', enabled: true },
     ],
