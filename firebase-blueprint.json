@@ -1,0 +1,455 @@
+{
+  "entities": {
+    "PlayerSave": {
+      "title": "PlayerSave",
+      "description": "Cloud save state for a Digimon RPG player, strictly isolated from PII and owned by a single Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable Firebase Auth UID of the account owner."
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$",
+          "description": "Display login handle chosen by the player."
+        },
+        "usernameLower": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-z0-9._\\-]+$",
+          "description": "Lowercase normalized username key."
+        },
+        "tamerSelection": {
+          "type": "object",
+          "description": "Selected Tamer avatar and in-game Tamer name."
+        },
+        "starterDigimon": {
+          "type": "object",
+          "description": "Permanent starter Digimon bound to the account."
+        },
+        "adventureProgress": {
+          "type": "object",
+          "description": "Last saved map ID, world coordinates, facing direction, step counter, and discovered zones."
+        },
+        "hudState": {
+          "type": "object",
+          "description": "Tamer & Digimon levels, EXP, HP, DS, active evolution, Bits, D-Coin, inventory, equipped items, and battle counters."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the cloud save profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest cloud save sync."
+        }
+      },
+      "required": ["ownerUid", "username", "usernameLower", "createdAt", "updatedAt"]
+    },
+    "PlayerPrivateAccount": {
+      "title": "PlayerPrivateAccount",
+      "description": "Isolated PII document storing the player's email address and auth provider, strictly restricted to the account owner.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable Firebase Auth UID of the account owner."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254,
+          "description": "Private email address linked to Firebase Authentication."
+        },
+        "authProvider": {
+          "type": "string",
+          "enum": ["password", "google"],
+          "description": "Primary authentication provider used by the player."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the private record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest private record update."
+        }
+      },
+      "required": ["ownerUid", "email", "authProvider", "createdAt", "updatedAt"]
+    },
+    "UsernameClaim": {
+      "title": "UsernameClaim",
+      "description": "Non-PII uniqueness claim linking a normalized username key to its owning player UID.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable Firebase Auth UID owning this username."
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$",
+          "description": "Original cased username."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the username was claimed."
+        }
+      },
+      "required": ["ownerUid", "username", "createdAt"]
+    },
+    "AlphaFeedbackReport": {
+      "title": "AlphaFeedbackReport",
+      "description": "Player-submitted Alpha test bug report, suggestion, or balance feedback stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable Firebase Auth UID of the reporting player."
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 24,
+          "pattern": "^[a-zA-Z0-9._\\-]+$",
+          "description": "Reporting player's username."
+        },
+        "tamerName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 24,
+          "description": "Active Tamer name at the time of submission (optional)."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["bug", "suggestion", "balance", "other"],
+          "description": "Type of Alpha test report."
+        },
+        "screenContext": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Screen or map where the player submitted feedback."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 600,
+          "description": "Detailed bug report or suggestion written by the player."
+        },
+        "deviceInfo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Device form factor and viewport metadata."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open"],
+          "description": "Initial server-enforced report status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the report was submitted."
+        }
+      },
+      "required": ["ownerUid", "username", "tamerName", "category", "screenContext", "message", "deviceInfo", "status", "createdAt"]
+    },
+    "GmAdminRecord": {
+      "title": "GmAdminRecord",
+      "description": "Console-managed Game Master (GM) authorization marker granting exclusive admin privileges to a verified UID.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["gm"],
+          "description": "Exclusive GM role marker."
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when GM access was granted via Firebase Console."
+        }
+      },
+      "required": ["role"]
+    },
+    "WorldPresence": {
+      "title": "WorldPresence",
+      "description": "Real-time shared-world avatar presence document (zero PII) enabling online players to see, walk beside, inspect, and chat with each other on the same map.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable Firebase Auth UID of the online player."
+        },
+        "tamerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "description": "In-game Tamer display name."
+        },
+        "characterId": {
+          "type": "string",
+          "enum": ["kai", "ren", "hina", "yuna"],
+          "description": "Selected Tamer avatar spritesheet ID."
+        },
+        "tamerLevel": {
+          "type": "number",
+          "description": "Current Tamer level (1..200)."
+        },
+        "digimonFormId": {
+          "type": "string",
+          "enum": [
+            "agumon",
+            "geogreymon",
+            "rizegreymon",
+            "shinegreymon",
+            "gaomon",
+            "gaogamon",
+            "machgaogamon",
+            "miragegaogamon",
+            "lalamon",
+            "sunflowmon",
+            "lilamon",
+            "rosemon"
+          ],
+          "description": "Active Partner Digimon evolution form ID."
+        },
+        "digimonLevel": {
+          "type": "number",
+          "description": "Current Partner Digimon level (1..200)."
+        },
+        "mapId": {
+          "type": "string",
+          "enum": ["dats-center", "hunting-plains", "data-forest"],
+          "description": "Current world map where the player is located."
+        },
+        "worldX": {
+          "type": "number",
+          "description": "Tamer X coordinate in world pixels (0..20000)."
+        },
+        "worldY": {
+          "type": "number",
+          "description": "Tamer Y coordinate in world pixels (0..20000)."
+        },
+        "facingDir": {
+          "type": "string",
+          "enum": ["N", "S", "E", "W"],
+          "description": "Tamer cardinal facing direction."
+        },
+        "moveState": {
+          "type": "string",
+          "enum": ["idle", "walk"],
+          "description": "Tamer movement animation state."
+        },
+        "partnerX": {
+          "type": "number",
+          "description": "Partner Digimon X coordinate in world pixels (0..20000)."
+        },
+        "partnerY": {
+          "type": "number",
+          "description": "Partner Digimon Y coordinate in world pixels (0..20000)."
+        },
+        "partnerDir": {
+          "type": "string",
+          "enum": ["N", "S", "E", "W"],
+          "description": "Partner Digimon cardinal facing direction."
+        },
+        "partnerMoving": {
+          "type": "boolean",
+          "description": "Whether the Partner Digimon is currently walking."
+        },
+        "isGm": {
+          "type": "boolean",
+          "description": "Server-verified GM badge flag (only true if caller satisfies isAdmin())."
+        },
+        "guildName": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Optional guild display name (or null)."
+        },
+        "chatText": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "Most recent live world/map chat message for speech bubble and chat feed."
+        },
+        "chatSeq": {
+          "type": "number",
+          "description": "Monotonically increasing counter for chat messages (0..1000000)."
+        },
+        "online": {
+          "type": "boolean",
+          "description": "Whether the player is actively present in the world."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest live presence or chat update."
+        }
+      },
+      "required": [
+        "ownerUid",
+        "tamerName",
+        "characterId",
+        "tamerLevel",
+        "digimonFormId",
+        "digimonLevel",
+        "mapId",
+        "worldX",
+        "worldY",
+        "facingDir",
+        "moveState",
+        "partnerX",
+        "partnerY",
+        "partnerDir",
+        "partnerMoving",
+        "isGm",
+        "guildName",
+        "chatText",
+        "chatSeq",
+        "online",
+        "updatedAt"
+      ]
+    },
+    "WorldBossState": {
+      "title": "WorldBossState",
+      "description": "Shared real-time multiplayer Raid World Boss state (zero PII) synchronized across all players on the map.",
+      "type": "object",
+      "properties": {
+        "bossId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable World Boss document ID."
+        },
+        "mapId": {
+          "type": "string",
+          "enum": ["data-forest"],
+          "description": "World map hosting this Raid Boss."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Display name of the Raid Boss."
+        },
+        "level": {
+          "type": "number",
+          "description": "Boss level (1..200)."
+        },
+        "hp": {
+          "type": "number",
+          "description": "Current shared Raid Boss HP (0..maxHp)."
+        },
+        "maxHp": {
+          "type": "number",
+          "description": "Maximum Raid Boss HP (100..10000000)."
+        },
+        "alive": {
+          "type": "boolean",
+          "description": "Whether the Raid Boss is currently spawned and fightable."
+        },
+        "respawnAtMs": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp when the boss respawns after defeat (0 while alive)."
+        },
+        "lastAttackerName": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Display name of the most recent Tamer to damage the boss."
+        },
+        "lastHitAtMs": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp of the most recent raid hit."
+        },
+        "contributors": {
+          "type": "object",
+          "description": "Map of participating UIDs to { tamerName, damage } (up to 32 raiders)."
+        },
+        "defeatedCount": {
+          "type": "number",
+          "description": "Monotonically increasing defeat counter used to distribute shared raid rewards."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest raid update."
+        }
+      },
+      "required": [
+        "bossId",
+        "mapId",
+        "name",
+        "level",
+        "hp",
+        "maxHp",
+        "alive",
+        "respawnAtMs",
+        "lastAttackerName",
+        "lastHitAtMs",
+        "contributors",
+        "defeatedCount",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/players/{userId}": {
+      "schema": { "$ref": "#/entities/PlayerSave" },
+      "description": "Per-user cloud save document for Tamer, Starter Digimon, world position, and HUD RPG progression."
+    },
+    "/players/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/PlayerPrivateAccount" },
+      "description": "Isolated PII subcollection (docId = 'account') strictly readable and writable only by the owner."
+    },
+    "/usernames/{usernameKey}": {
+      "schema": { "$ref": "#/entities/UsernameClaim" },
+      "description": "Unique non-PII username registry preventing duplicate player handles."
+    },
+    "/alphaFeedback/{reportId}": {
+      "schema": { "$ref": "#/entities/AlphaFeedbackReport" },
+      "description": "Alpha test player bug reports and suggestions readable/deletable by their author or the verified GM account."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/GmAdminRecord" },
+      "description": "Read-only GM role registry managed exclusively in Firebase Console; zero client writes allowed."
+    },
+    "/worldPresence/{userId}": {
+      "schema": { "$ref": "#/entities/WorldPresence" },
+      "description": "Live zero-PII multiplayer avatar presence and world chat broadcast per verified player."
+    },
+    "/worldBosses/{bossId}": {
+      "schema": { "$ref": "#/entities/WorldBossState" },
+      "description": "Shared real-time multiplayer Raid Boss state for cooperative bosses such as Kuwagamon in Floresta de Dados."
+    }
+  }
+}

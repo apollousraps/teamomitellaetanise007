@@ -1,0 +1,790 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Lock,
+  LogOut,
+  Settings,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import {
+  getDigiEggDisplayInfo,
+  getInventoryDigiEggs,
+  getInventoryReinforceMaterials,
+  INCUBATOR_TOTAL_TRAY_SLOTS,
+  INCUBATOR_VISIBLE_EGG_SLOTS,
+  validateDigiEggHatch,
+  validateEggReinforce,
+} from '../../services/incubatorService';
+import {
+  mountIncubatorChamberPreview,
+  type IncubatorPreviewController,
+} from '../../three/digimonIncubator3D';
+import type { AccountHudPersistence, InventoryItem } from '../../types/hud';
+
+interface DigiEggIncubatorModalProps {
+  hudAccount: AccountHudPersistence;
+  onExecuteHatch: (eggItemId: string) => {
+    ok: boolean;
+    message: string;
+    hatchedSpecies?: string;
+  };
+  onExecuteReinforce: (
+    eggItemId: string,
+    materialItemId: string | null
+  ) => {
+    ok: boolean;
+    message: string;
+    newReinforceLevel?: number;
+  };
+  onPlayTone: (tone: 'click' | 'confirm' | 'error') => void;
+  onClose: () => void;
+}
+
+function CrackedDigiEggIcon({
+  className = 'h-5 w-5',
+  variant = 'cyan',
+}: {
+  className?: string;
+  variant?: 'cyan' | 'white' | 'gold';
+}) {
+  const fill =
+    variant === 'gold'
+      ? '#fef08a'
+      : variant === 'white'
+        ? '#f8fafc'
+        : '#7dd3fc';
+  const stroke =
+    variant === 'gold'
+      ? '#78350f'
+      : variant === 'white'
+        ? '#78350f'
+        : '#082f6e';
+
+  return (
+    <svg viewBox="0 0 32 32" className={className}>
+      <path
+        d="M16 3C10.5 3 6.5 11.2 6.5 18.8 6.5 24.8 10.6 29 16 29s9.5-4.2 9.5-10.2C25.5 11.2 21.5 3 16 3z"
+        fill={fill}
+        stroke={stroke}
+        strokeWidth="1.8"
+      />
+      <path
+        d="M8.4 16.5l3.6-2.5 3.4 2.8 3.6-3.1 4.4 2.6"
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <ellipse
+        cx="12.5"
+        cy="9.5"
+        rx="2"
+        ry="3.4"
+        transform="rotate(-18 12.5 9.5)"
+        fill="#ffffff"
+        opacity="0.7"
+      />
+    </svg>
+  );
+}
+
+function DigiEggArtwork({
+  accentColor,
+  sizeClass = 'h-12 w-12 sm:h-14 sm:w-14',
+}: {
+  accentColor: string;
+  sizeClass?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 48 56"
+      className={`${sizeClass} drop-shadow-[0_4px_10px_rgba(56,232,255,0.45)]`}
+    >
+      <defs>
+        <radialGradient id="eggShellGrad" cx="35%" cy="28%" r="72%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="55%" stopColor="#e0f2fe" />
+          <stop offset="100%" stopColor="#94a3b8" />
+        </radialGradient>
+      </defs>
+      <path
+        d="M24 4C14 4 7 19 7 32.5 7 44 14.3 52 24 52s17-8 17-19.5C41 19 34 4 24 4z"
+        fill="url(#eggShellGrad)"
+        stroke={accentColor}
+        strokeWidth="2.4"
+      />
+      <path
+        d="M9.5 29l6.5-5.5 7.5 6 7-6.2 7.8 5.2-3.5 4.8-4.5-3.4-6.8 6-7.6-5.8-4.2 3.4z"
+        fill={accentColor}
+        opacity="0.9"
+      />
+      <ellipse
+        cx="17.5"
+        cy="15.5"
+        rx="3.4"
+        ry="6.2"
+        transform="rotate(-20 17.5 15.5)"
+        fill="#ffffff"
+        opacity="0.82"
+      />
+    </svg>
+  );
+}
+
+export function DigiEggIncubatorModal({
+  hudAccount,
+  onExecuteHatch,
+  onExecuteReinforce,
+  onPlayTone,
+  onClose,
+}: DigiEggIncubatorModalProps) {
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const previewCtrlRef = useRef<IncubatorPreviewController | null>(null);
+  const actionTimerRef = useRef<number | null>(null);
+
+  const [webglFallback, setWebglFallback] = useState(false);
+  const [selectedEggId, setSelectedEggId] = useState<string | null>(null);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const [showReinforceArea, setShowReinforceArea] = useState(false);
+  const [processingKind, setProcessingKind] = useState<'hatch' | 'reinforce' | null>(
+    null
+  );
+  const [feedback, setFeedback] = useState<{
+    tone: 'success' | 'error' | 'info';
+    text: string;
+  } | null>(null);
+
+  const realDigiEggs = useMemo(
+    () => getInventoryDigiEggs(hudAccount.inventory),
+    [hudAccount.inventory]
+  );
+
+  const reinforceMaterials = useMemo(
+    () => getInventoryReinforceMaterials(hudAccount.inventory),
+    [hudAccount.inventory]
+  );
+
+  // Keep selectedEggId valid against real inventory
+  const selectedEggItem: InventoryItem | null = useMemo(() => {
+    if (!selectedEggId) return null;
+    return realDigiEggs.find((egg) => egg.id === selectedEggId) ?? null;
+  }, [realDigiEggs, selectedEggId]);
+
+  const selectedEggInfo = useMemo(() => {
+    if (!selectedEggItem) return null;
+    return getDigiEggDisplayInfo(selectedEggItem, hudAccount.inventory);
+  }, [hudAccount.inventory, selectedEggItem]);
+
+  const selectedMaterial: InventoryItem | null = useMemo(() => {
+    if (reinforceMaterials.length === 0) return null;
+    if (selectedMaterialId) {
+      const found = reinforceMaterials.find((m) => m.id === selectedMaterialId);
+      if (found) return found;
+    }
+    return reinforceMaterials[0];
+  }, [reinforceMaterials, selectedMaterialId]);
+
+  // Mount live 3D Three.js Incubator in the central chamber
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const ctrl = mountIncubatorChamberPreview(canvas, () => {
+      setWebglFallback(true);
+    });
+    previewCtrlRef.current = ctrl;
+    return () => {
+      ctrl.dispose();
+      previewCtrlRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (actionTimerRef.current !== null) {
+        window.clearTimeout(actionTimerRef.current);
+      }
+    };
+  }, []);
+
+  function setChamberVisualMode(mode: 'idle' | 'hatching' | 'reinforcing' | 'success') {
+    previewCtrlRef.current?.setMode(mode);
+  }
+
+  function handleSelectEgg(egg: InventoryItem) {
+    if (processingKind) return;
+    onPlayTone('click');
+    setSelectedEggId(egg.id);
+    setFeedback(null);
+  }
+
+  function handleClickChocar() {
+    if (processingKind) return;
+
+    const validation = validateDigiEggHatch(hudAccount, selectedEggItem?.id ?? null);
+    if (!validation.ok || !selectedEggItem) {
+      onPlayTone('error');
+      setShowReinforceArea(false);
+      setFeedback({
+        tone: 'error',
+        text:
+          validation.error ??
+          'Selecione um DigiEgg válido disponível no inventário para chocar.',
+      });
+      return;
+    }
+
+    setShowReinforceArea(false);
+    setProcessingKind('hatch');
+    setChamberVisualMode('hatching');
+    setFeedback({
+      tone: 'info',
+      text: `Canalizando energia digital na Incubadora para chocar ${selectedEggItem.name}...`,
+    });
+    onPlayTone('confirm');
+
+    const eggIdSnapshot = selectedEggItem.id;
+    actionTimerRef.current = window.setTimeout(() => {
+      const result = onExecuteHatch(eggIdSnapshot);
+      setProcessingKind(null);
+      if (result.ok) {
+        setChamberVisualMode('success');
+        onPlayTone('confirm');
+        setFeedback({ tone: 'success', text: result.message });
+        window.setTimeout(() => setChamberVisualMode('idle'), 1600);
+      } else {
+        setChamberVisualMode('idle');
+        onPlayTone('error');
+        setFeedback({ tone: 'error', text: result.message });
+      }
+    }, 1250);
+  }
+
+  function handleToggleReinforce() {
+    if (processingKind) return;
+    onPlayTone('click');
+    setFeedback(null);
+    setShowReinforceArea((prev) => !prev);
+  }
+
+  function handleApplyReinforce() {
+    if (processingKind) return;
+
+    const check = validateEggReinforce(
+      hudAccount,
+      selectedEggItem?.id ?? null,
+      selectedMaterial?.id ?? null
+    );
+    if (!check.ok || !selectedEggItem) {
+      onPlayTone('error');
+      setFeedback({
+        tone: 'error',
+        text: check.error ?? 'Não foi possível iniciar o reforço.',
+      });
+      return;
+    }
+
+    setProcessingKind('reinforce');
+    setChamberVisualMode('reinforcing');
+    setFeedback({
+      tone: 'info',
+      text: `Aplicando reforço em ${selectedEggItem.name}...`,
+    });
+    onPlayTone('confirm');
+
+    const eggIdSnapshot = selectedEggItem.id;
+    const matIdSnapshot = selectedMaterial?.id ?? null;
+    actionTimerRef.current = window.setTimeout(() => {
+      const result = onExecuteReinforce(eggIdSnapshot, matIdSnapshot);
+      setProcessingKind(null);
+      if (result.ok) {
+        setChamberVisualMode('success');
+        onPlayTone('confirm');
+        setFeedback({ tone: 'success', text: result.message });
+        window.setTimeout(() => setChamberVisualMode('idle'), 1400);
+      } else {
+        setChamberVisualMode('idle');
+        onPlayTone('error');
+        setFeedback({ tone: 'error', text: result.message });
+      }
+    }, 950);
+  }
+
+  function handleSafeClose() {
+    if (processingKind) return;
+    onPlayTone('click');
+    onClose();
+  }
+
+  const traySlots = useMemo(() => {
+    return Array.from({ length: INCUBATOR_TOTAL_TRAY_SLOTS }, (_, index) => {
+      if (index >= INCUBATOR_VISIBLE_EGG_SLOTS) {
+        return { kind: 'locked' as const, index };
+      }
+      const realEgg = realDigiEggs[index] ?? null;
+      if (realEgg) {
+        return { kind: 'egg' as const, index, item: realEgg };
+      }
+      return { kind: 'empty' as const, index };
+    });
+  }, [realDigiEggs]);
+
+  return (
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={handleSafeClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Chocador de DigiEgg"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#020816]/72 p-1.5 backdrop-blur-[2px] sm:p-4 [@media(max-height:500px)]:p-1"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="animate-dmo-window relative flex max-h-[95dvh] w-full max-w-[660px] flex-col gap-1.5 overflow-y-auto pr-0.5 sm:gap-2.5 [@media(max-height:500px)]:gap-1"
+      >
+        {/* ================= MAIN WINDOW: CHOCADOR DE DIGIEGG ================= */}
+        <div className="relative flex flex-col">
+          {/* Top-Right Extruded Metallic Square X Button */}
+          <button
+            type="button"
+            disabled={Boolean(processingKind)}
+            onClick={handleSafeClose}
+            aria-label="Fechar Chocador de DigiEgg"
+            className="absolute right-1.5 top-1 z-30 flex h-7.5 w-7.5 items-center justify-center rounded-lg border-2 border-[#8ef2ff] bg-gradient-to-b from-[#185fc9] via-[#0c3c9c] to-[#051d5a] text-white shadow-[0_0_16px_rgba(56,232,255,0.65),inset_0_1px_0_rgba(255,255,255,0.65)] transition duration-150 hover:brightness-115 active:scale-95 disabled:opacity-50 sm:right-2 sm:top-1.5 sm:h-9.5 sm:w-9.5 [@media(max-height:500px)]:h-7 [@media(max-height:500px)]:w-7"
+          >
+            <X className="h-4 w-4 stroke-[3.2] drop-shadow-[0_0_6px_rgba(56,242,255,0.85)] sm:h-5 sm:w-5" />
+          </button>
+
+          {/* Outer Glowing Cyan Chamfered Cyber Frame */}
+          <div className="clip-cyber-panel relative bg-gradient-to-b from-[#7af2ff] via-[#26b6ff] to-[#56e4ff] p-[2px] shadow-[0_0_42px_rgba(0,174,255,0.62)] sm:p-[2.5px]">
+            <div className="clip-cyber-panel dmo-cyber-matrix-bg relative flex flex-col overflow-hidden">
+              {/* CABEÇALHO */}
+              <div className="relative flex h-9.5 items-center border-b-2 border-[#3ad5ff] bg-gradient-to-r from-[#062a78] via-[#0d54d4] to-[#062a78] pl-2.5 pr-11 shadow-[0_4px_16px_rgba(0,145,255,0.45)] sm:h-[50px] sm:pl-4 sm:pr-14 [@media(max-height:500px)]:h-8.5">
+                <div className="flex items-center gap-2 sm:gap-2.5">
+                  <div className="clip-cyber-input flex h-6.5 w-8 items-center justify-center border border-[#72f0ff] bg-gradient-to-b from-[#114ec2] to-[#04194d] shadow-[0_0_12px_rgba(56,232,255,0.55)] sm:h-8.5 sm:w-10.5">
+                    <CrackedDigiEggIcon
+                      variant="cyan"
+                      className="h-4.5 w-4.5 drop-shadow-[0_0_6px_rgba(56,240,255,0.9)] sm:h-5.5 sm:w-5.5"
+                    />
+                  </div>
+                  <h2 className="text-[15px] font-black italic tracking-wide text-white drop-shadow-[0_2px_8px_rgba(56,232,255,0.75)] sm:text-[21px] [@media(max-height:500px)]:text-[14px]">
+                    Chocador de DigiEgg
+                  </h2>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="ml-4 hidden h-2.5 flex-1 skew-x-[-30deg] border-b border-l border-[#62e8ff]/70 bg-[#062266]/45 sm:block"
+                />
+              </div>
+
+              {/* MAIN CHAMBER + DETAILS + ACTION BUTTONS */}
+              <div className="flex flex-col gap-2 p-2 sm:gap-2.5 sm:p-3 [@media(max-height:500px)]:gap-1.5 [@media(max-height:500px)]:p-2">
+                <div className="grid grid-cols-12 gap-1.5 sm:gap-2.5">
+                  {/* Left Slim Sidebar Slots (Egg Mode / Reinforce Mode) */}
+                  <div className="col-span-2 flex flex-col justify-between gap-1.5 sm:col-span-1 sm:gap-2">
+                    <button
+                      type="button"
+                      disabled={Boolean(processingKind)}
+                      onClick={() => {
+                        onPlayTone('click');
+                        setShowReinforceArea(false);
+                      }}
+                      title="Modo Chocador de DigiEgg"
+                      className={`clip-cyber-input flex flex-1 min-h-[76px] flex-col items-center justify-center border p-1 transition sm:min-h-[120px] [@media(max-height:500px)]:min-h-[60px] ${
+                        !showReinforceArea
+                          ? 'border-[#7af2ff] bg-gradient-to-b from-[#0b3b9c] to-[#051a4e] shadow-[inset_0_0_16px_rgba(56,232,255,0.35)]'
+                          : 'border-[#2580d8]/65 bg-[#04143a]/90 opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <CrackedDigiEggIcon
+                        variant="cyan"
+                        className="h-7 w-7 drop-shadow-[0_0_10px_rgba(56,232,255,0.85)] sm:h-8 sm:w-8"
+                      />
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(processingKind)}
+                      onClick={handleToggleReinforce}
+                      title="Área de Reforço"
+                      className={`flex h-11 w-full items-center justify-center rounded-lg border transition sm:h-12 [@media(max-height:500px)]:h-9 ${
+                        showReinforceArea
+                          ? 'border-amber-300 bg-gradient-to-b from-[#17469c] to-[#081d4d] shadow-[0_0_12px_rgba(250,204,21,0.45)]'
+                          : 'border-[#2c82da]/70 bg-gradient-to-b from-[#071f54] to-[#030d27] hover:border-cyan-300'
+                      }`}
+                    >
+                      <Settings
+                        className={`h-4.5 w-4.5 sm:h-5 sm:w-5 ${
+                          showReinforceArea ? 'text-amber-300' : 'text-cyan-300/80'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Right 10/11 Columns: 3D Holographic Chamber + Details + Buttons */}
+                  <div className="col-span-10 flex flex-col gap-2 sm:col-span-11">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                      {/* Center-Left: Live 3D Three.js Incubator Holographic Chamber */}
+                      <div className="relative overflow-hidden rounded-xl border-2 border-[#3fd7ff]/85 bg-gradient-to-b from-[#062369] via-[#041645] to-[#020a24] shadow-[inset_0_0_28px_rgba(0,180,255,0.35)] sm:col-span-7">
+                        {/* Vertical cyan holographic light beams matching reference */}
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,232,255,0.28)_0%,rgba(6,35,105,0.1)_65%,transparent_100%)]"
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 left-[14%] w-[18%] bg-gradient-to-b from-cyan-300/25 via-cyan-400/10 to-transparent blur-sm"
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 right-[14%] w-[18%] bg-gradient-to-b from-cyan-300/25 via-cyan-400/10 to-transparent blur-sm"
+                        />
+
+                        <div className="relative h-[156px] w-full sm:h-[208px] [@media(max-height:500px)]:h-[132px]">
+                          {!webglFallback ? (
+                            <canvas
+                              ref={previewCanvasRef}
+                              aria-label="Modelo 3D da Incubadora de Digimon"
+                              className="h-full w-full"
+                            />
+                          ) : (
+                            <div className="flex h-full flex-col items-center justify-center gap-1.5 p-3 text-center">
+                              <Sparkles className="h-8 w-8 animate-pulse text-cyan-300" />
+                              <span className="text-[11px] font-bold text-cyan-100">
+                                Incubadora Digital DATS
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Energy surge ring overlay during Hatching / Reinforce */}
+                          {processingKind && (
+                            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end bg-cyan-400/10 pb-2">
+                              <span className="animate-pulse rounded-full border border-amber-300/90 bg-[#051844]/90 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-200 shadow-[0_0_16px_rgba(250,204,21,0.55)]">
+                                {processingKind === 'hatch'
+                                  ? 'Chocando DigiEgg...'
+                                  : 'Reforçando DigiEgg...'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: DigiEgg Info / Reinforce Panel */}
+                      <div className="flex min-h-[146px] flex-col justify-between rounded-xl border-2 border-[#3fd7ff]/80 bg-gradient-to-b from-[#061e57]/95 to-[#030e2c]/98 p-2.5 shadow-[inset_0_0_20px_rgba(0,145,255,0.22)] sm:col-span-5 sm:min-h-[208px] sm:p-3 [@media(max-height:500px)]:min-h-[132px]">
+                        {/* Panel Top Tag */}
+                        <div className="flex items-center justify-between gap-1.5 border-b border-cyan-400/30 pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <CrackedDigiEggIcon variant="cyan" className="h-4.5 w-4.5 shrink-0" />
+                            <span className="text-xs font-extrabold tracking-wide text-white sm:text-sm">
+                              {showReinforceArea ? 'Reforço de DigiEgg' : 'DigiEgg'}
+                            </span>
+                          </div>
+                          {selectedEggItem && (
+                            <span className="rounded border border-cyan-300/40 bg-[#092a70] px-1.5 py-0.5 text-[9px] font-black tabular-nums text-cyan-200">
+                              Qtd: {selectedEggItem.quantity}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Panel Content: Hatch View vs Reinforce View */}
+                        {showReinforceArea ? (
+                          <div className="my-auto flex flex-col gap-2 py-1.5 text-[11px]">
+                            <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2.5 py-1.5">
+                              <p className="text-[9.5px] font-bold uppercase tracking-wider text-cyan-300">
+                                Nível Atual de Reforço
+                              </p>
+                              <p className="mt-0.5 font-black text-white">
+                                {selectedEggInfo
+                                  ? `${selectedEggInfo.item.name} — Nv. ${selectedEggInfo.hatchLevel}/${selectedEggInfo.maxHatchLevel}`
+                                  : 'Nenhum DigiEgg selecionado'}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2.5 py-1.5">
+                              <p className="text-[9.5px] font-bold uppercase tracking-wider text-cyan-300">
+                                Materiais de Reforço no Inventário
+                              </p>
+                              {reinforceMaterials.length === 0 ? (
+                                <p className="mt-1 text-[10.5px] leading-snug text-slate-300">
+                                  Nenhum item de reforço encontrado no inventário. Quando itens de reforço forem adicionados ao jogo, aparecerão aqui.
+                                </p>
+                              ) : (
+                                <div className="mt-1.5 flex flex-col gap-1 max-h-[68px] overflow-y-auto">
+                                  {reinforceMaterials.map((mat) => {
+                                    const activeMat = selectedMaterial?.id === mat.id;
+                                    return (
+                                      <button
+                                        key={mat.id}
+                                        type="button"
+                                        onClick={() => {
+                                          onPlayTone('click');
+                                          setSelectedMaterialId(mat.id);
+                                        }}
+                                        className={`flex items-center justify-between rounded border px-2 py-1 text-left text-[10px] transition ${
+                                          activeMat
+                                            ? 'border-amber-300 bg-[#0b3588] text-amber-100'
+                                            : 'border-cyan-400/30 bg-[#051845] text-cyan-100 hover:border-cyan-300'
+                                        }`}
+                                      >
+                                        <span className="truncate font-bold">{mat.name}</span>
+                                        <span className="shrink-0 font-black tabular-nums text-cyan-200">
+                                          x{mat.quantity}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={
+                                Boolean(processingKind) ||
+                                !selectedEggInfo ||
+                                reinforceMaterials.length === 0
+                              }
+                              onClick={handleApplyReinforce}
+                              className="w-full rounded-lg border border-cyan-300/75 bg-gradient-to-b from-[#1764e0] to-[#083082] py-1.5 text-[11px] font-black uppercase tracking-wide text-white shadow transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                            >
+                              {processingKind === 'reinforce'
+                                ? 'Reforçando...'
+                                : 'Aplicar Reforço'}
+                            </button>
+                          </div>
+                        ) : !selectedEggInfo ? (
+                          <div className="my-auto flex flex-col items-center justify-center gap-1.5 py-4 text-center">
+                            <p className="text-xs font-extrabold leading-relaxed text-sky-100 sm:text-[13px]">
+                              Selecione um DigiEgg para chocar.
+                            </p>
+                            <p className="text-[10px] font-semibold text-cyan-200/75">
+                              {realDigiEggs.length === 0
+                                ? 'Nenhum DigiEgg disponível no inventário.'
+                                : `${realDigiEggs.length} DigiEgg(s) disponível(is) na bandeja abaixo.`}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="my-auto flex flex-col gap-2 py-1.5 text-[11px]">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-cyan-300/60 bg-[#051742] p-1 shadow-[0_0_14px_rgba(56,232,255,0.28)]">
+                                <DigiEggArtwork
+                                  accentColor={selectedEggInfo.accentColor}
+                                  sizeClass="h-10 w-10"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-black text-white sm:text-[13px]">
+                                  {selectedEggInfo.item.name}
+                                </p>
+                                <p className="text-[10.5px] font-bold text-amber-300">
+                                  Raridade: {selectedEggInfo.rarity}
+                                </p>
+                                <p className="text-[10px] font-semibold text-cyan-200">
+                                  Reforço: Nv. {selectedEggInfo.hatchLevel}/
+                                  {selectedEggInfo.maxHatchLevel}
+                                </p>
+                              </div>
+                            </div>
+
+                            <p className="line-clamp-2 text-[10.5px] leading-snug text-sky-100/85">
+                              {selectedEggInfo.item.description}
+                            </p>
+
+                            {selectedEggInfo.requiredMaterials.length > 0 && (
+                              <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2 py-1">
+                                <p className="text-[9px] font-bold uppercase text-cyan-300">
+                                  Requisitos para Chocar
+                                </p>
+                                <div className="mt-0.5 space-y-0.5">
+                                  {selectedEggInfo.requiredMaterials.map((req) => (
+                                    <div
+                                      key={req.itemKey}
+                                      className="flex items-center justify-between text-[10px]"
+                                    >
+                                      <span className="truncate text-slate-200">
+                                        {req.name}
+                                      </span>
+                                      <span
+                                        className={`font-black tabular-nums ${
+                                          req.owned >= req.quantity
+                                            ? 'text-emerald-300'
+                                            : 'text-rose-300'
+                                        }`}
+                                      >
+                                        {req.owned}/{req.quantity}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Feedback Status Strip */}
+                    {feedback && (
+                      <div
+                        role="status"
+                        className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${
+                          feedback.tone === 'success'
+                            ? 'border-emerald-300/75 bg-emerald-950/80 text-emerald-100'
+                            : feedback.tone === 'error'
+                              ? 'border-rose-400/75 bg-rose-950/85 text-rose-100'
+                              : 'border-cyan-300/75 bg-[#08245e]/90 text-cyan-100'
+                        }`}
+                      >
+                        {feedback.tone === 'success' ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
+                        ) : feedback.tone === 'error' ? (
+                          <AlertCircle className="h-4 w-4 shrink-0 text-rose-300" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 shrink-0 animate-spin text-cyan-300" />
+                        )}
+                        <span className="leading-snug">{feedback.text}</span>
+                      </div>
+                    )}
+
+                    {/* EXACT 3 ACTION BUTTONS: CHOCAR DIGIEGG | REFORÇO | SAIR */}
+                    <div className="flex flex-col gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        disabled={Boolean(processingKind)}
+                        onClick={handleClickChocar}
+                        className="clip-cyber-tab flex min-h-[38px] w-full items-center justify-center bg-gradient-to-b from-[#fff59d] via-[#fbbf24] to-[#b45309] p-[1.5px] shadow-[0_0_20px_rgba(245,158,11,0.45)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[42px]"
+                      >
+                        <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-2 bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] px-4 py-1.5 text-sm font-black tracking-wide text-white drop-shadow sm:text-base">
+                          <CrackedDigiEggIcon variant="white" className="h-5 w-5" />
+                          <span>
+                            {processingKind === 'hatch'
+                              ? 'Chocando DigiEgg...'
+                              : 'Chocar DigiEgg'}
+                          </span>
+                        </span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                        <button
+                          type="button"
+                          disabled={Boolean(processingKind)}
+                          onClick={handleToggleReinforce}
+                          className={`clip-cyber-tab flex min-h-[34px] items-center justify-center p-[1.5px] transition hover:brightness-115 active:scale-[0.98] disabled:opacity-60 sm:min-h-[38px] ${
+                            showReinforceArea
+                              ? 'bg-gradient-to-b from-[#fef08a] via-[#f59e0b] to-[#b45309]'
+                              : 'bg-gradient-to-b from-[#7af2ff] via-[#1e88e5] to-[#0a368a]'
+                          }`}
+                        >
+                          <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-1.5 bg-gradient-to-b from-[#0f4bb8] to-[#062161] px-3 py-1 text-xs font-extrabold tracking-wide text-white sm:text-sm">
+                            <Settings className="h-4 w-4 text-cyan-200" />
+                            <span>Reforço</span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={Boolean(processingKind)}
+                          onClick={handleSafeClose}
+                          className="clip-cyber-tab flex min-h-[34px] items-center justify-center bg-gradient-to-b from-[#fda4af] via-[#e11d48] to-[#881337] p-[1.5px] shadow-[0_0_14px_rgba(225,29,72,0.38)] transition hover:brightness-115 active:scale-[0.98] disabled:opacity-60 sm:min-h-[38px]"
+                        >
+                          <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-1.5 bg-gradient-to-b from-[#be123c] to-[#6e0922] px-3 py-1 text-xs font-extrabold tracking-wide text-white sm:text-sm">
+                            <LogOut className="h-4 w-4 text-rose-100" />
+                            <span>Sair</span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= BOTTOM WINDOW: MEUS DIGIEGGS ================= */}
+        <div className="clip-cyber-panel bg-gradient-to-b from-[#7af2ff] via-[#26b6ff] to-[#56e4ff] p-[2px] shadow-[0_0_32px_rgba(0,174,255,0.48)]">
+          <div className="clip-cyber-panel dmo-cyber-matrix-bg flex flex-col overflow-hidden">
+            {/* Tray Header */}
+            <div className="flex h-8.5 items-center justify-between border-b border-[#3ad5ff]/80 bg-gradient-to-r from-[#062a78] via-[#0c49bf] to-[#062a78] px-3 sm:h-9.5 sm:px-4">
+              <div className="flex items-center gap-2">
+                <CrackedDigiEggIcon variant="cyan" className="h-4.5 w-4.5" />
+                <span className="text-xs font-black italic tracking-wide text-white sm:text-sm">
+                  Meus DigiEggs
+                </span>
+              </div>
+              <span className="text-[10px] font-bold tabular-nums text-cyan-200">
+                Inventário: {realDigiEggs.length} tipo(s)
+              </span>
+            </div>
+
+            {/* 5 Pedestal Slots (Real DigiEggs from Inventory + Empty/Locked Slots — zero fake eggs) */}
+            <div className="grid grid-cols-5 gap-1.5 p-2 sm:gap-2.5 sm:p-3 [@media(max-height:500px)]:p-1.5">
+              {traySlots.map((slot) => {
+                if (slot.kind === 'locked') {
+                  return (
+                    <div
+                      key={`locked-${slot.index}`}
+                      className="flex min-h-[74px] flex-col items-center justify-center gap-1 rounded-xl border border-slate-600/55 bg-[#030d24]/85 p-1.5 text-center opacity-75 sm:min-h-[96px]"
+                    >
+                      <Lock className="h-5 w-5 text-slate-400 sm:h-6 sm:w-6" />
+                      <span className="text-[8.5px] font-bold leading-tight text-slate-400 sm:text-[10px]">
+                        Espaço Bloqueado
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (slot.kind === 'empty') {
+                  return (
+                    <div
+                      key={`empty-${slot.index}`}
+                      className="relative flex min-h-[74px] flex-col items-center justify-end rounded-xl border border-[#2c82da]/45 bg-gradient-to-b from-[#04143a]/90 to-[#020a21]/95 p-1.5 sm:min-h-[96px]"
+                    >
+                      <span className="mb-auto mt-2 text-[8.5px] font-bold text-cyan-200/45 sm:text-[9.5px]">
+                        Vazio
+                      </span>
+                      <div className="h-2.5 w-11 rounded-full border border-cyan-400/35 bg-cyan-500/15 shadow-[0_0_10px_rgba(56,232,255,0.2)] sm:w-14" />
+                    </div>
+                  );
+                }
+
+                const egg = slot.item;
+                const info = getDigiEggDisplayInfo(egg, hudAccount.inventory);
+                const isSelected = selectedEggItem?.id === egg.id;
+
+                return (
+                  <button
+                    key={egg.id}
+                    type="button"
+                    disabled={Boolean(processingKind)}
+                    onClick={() => handleSelectEgg(egg)}
+                    title={`${egg.name} (${info.rarity}) · x${egg.quantity}`}
+                    className={`relative flex min-h-[74px] flex-col items-center justify-between rounded-xl border p-1.5 transition sm:min-h-[96px] ${
+                      isSelected
+                        ? 'border-amber-300 bg-gradient-to-b from-[#0e3f9e] to-[#051a4e] shadow-[0_0_18px_rgba(250,204,21,0.5)]'
+                        : 'border-[#38bdf8]/65 bg-gradient-to-b from-[#072668] to-[#031033] hover:border-cyan-200'
+                    }`}
+                  >
+                    <span className="self-end rounded bg-[#02091c]/85 px-1 text-[8px] font-black tabular-nums text-cyan-200">
+                      x{egg.quantity}
+                    </span>
+                    <DigiEggArtwork
+                      accentColor={info.accentColor}
+                      sizeClass="h-9 w-9 sm:h-11 sm:w-11"
+                    />
+                    <div className="h-2 w-11 rounded-full border border-cyan-300/75 bg-cyan-400/35 shadow-[0_0_10px_rgba(56,232,255,0.55)] sm:w-14" />
+                    <span className="w-full truncate text-center text-[8.5px] font-extrabold text-white sm:text-[9.5px]">
+                      {egg.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
