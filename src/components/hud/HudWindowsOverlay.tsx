@@ -17,12 +17,13 @@ import type { PlayableMapId } from '../../data/worldMapCatalog';
 import { DATS_INTERACTION_POINTS } from '../../maps/datsCenterMap';
 import { BASIC_BITS_SHOP_ITEMS } from '../../services/hudGameService';
 import type { AppPreferences } from '../../types/auth';
-import type { TamerCharacter } from '../../types/character';
+import type { TamerCharacter, TamerId } from '../../types/character';
 import type { DigimonFormId, DigimonFormProfile } from '../../types/digimon';
 import type {
   AccountHudPersistence,
   DigimonRuntimeStats,
   EquipmentSlotId,
+  HatchQualityGrade,
   HudNotificationItem,
   HudWindowId,
   InventoryItem,
@@ -59,10 +60,19 @@ interface HudWindowsOverlayProps {
   onUnequipSlot: (slot: EquipmentSlotId) => void;
   onBuyShopItem: (itemKey: string) => void;
   onEvolveDigimon: (targetFormId: DigimonFormId) => void;
+  onExecuteDataInject: (eggItemId: string) => {
+    ok: boolean;
+    outcome: 'success' | 'fail' | 'broken' | 'error';
+    message: string;
+    newLevel?: number;
+    brokeEgg?: boolean;
+    updatedEggId?: string;
+  };
   onExecuteEggHatch: (eggItemId: string) => {
     ok: boolean;
     message: string;
     hatchedSpecies?: string;
+    hatchedGrade?: 3 | 4 | 5;
   };
   onExecuteEggReinforce: (
     eggItemId: string,
@@ -71,10 +81,20 @@ interface HudWindowsOverlayProps {
     ok: boolean;
     message: string;
     newReinforceLevel?: number;
+    updatedEggId?: string;
   };
   onPlayTone: (tone: 'click' | 'confirm' | 'error') => void;
   onAdminSetDigimonLevel: (level: number) => void;
   onAdminAddDigimonExp: (expAmount: number) => void;
+  onAdminPullAnyDigimon: (formId: DigimonFormId, grade: HatchQualityGrade) => void;
+  onAdminSetHatchGrade: (grade: HatchQualityGrade) => void;
+  onAdminGrantItem: (itemKey: string, quantity: number, eggHatchLevel?: number) => void;
+  onAdminGrantAllDatas: (quantityEach: number) => void;
+  onAdminGrantAllEggs: (eggHatchLevel: number) => void;
+  onAdminGrantCurrency: (bitsDelta: number, dCoinDelta: number) => void;
+  onAdminClearInventory: () => void;
+  onAdminSwitchTamer?: (tamerId: TamerId) => void;
+  onOpenSelectionFlow?: (screen: 'character-select' | 'digimon-select') => void;
   onAdminRestoreVitals: () => void;
   onTravelToMap: (mapId: PlayableMapId) => void;
   isGM: boolean;
@@ -105,11 +125,21 @@ export function HudWindowsOverlay({
   onUnequipSlot,
   onBuyShopItem,
   onEvolveDigimon,
+  onExecuteDataInject,
   onExecuteEggHatch,
   onExecuteEggReinforce,
   onPlayTone,
   onAdminSetDigimonLevel,
   onAdminAddDigimonExp,
+  onAdminPullAnyDigimon,
+  onAdminSetHatchGrade,
+  onAdminGrantItem,
+  onAdminGrantAllDatas,
+  onAdminGrantAllEggs,
+  onAdminGrantCurrency,
+  onAdminClearInventory,
+  onAdminSwitchTamer,
+  onOpenSelectionFlow,
   onAdminRestoreVitals,
   onTravelToMap,
   isGM,
@@ -153,6 +183,7 @@ export function HudWindowsOverlay({
     return (
       <DigiEggIncubatorModal
         hudAccount={hudAccount}
+        onExecuteDataInject={onExecuteDataInject}
         onExecuteHatch={onExecuteEggHatch}
         onExecuteReinforce={onExecuteEggReinforce}
         onPlayTone={onPlayTone}
@@ -168,9 +199,22 @@ export function HudWindowsOverlay({
         digimon={digimon}
         digimonStats={digimonStats}
         currentMapId={snapshot.mapId}
+        currentTamerId={character.id}
+        bits={bits}
+        dCoin={dCoin}
+        inventory={inventory}
         onSetDigimonLevel={onAdminSetDigimonLevel}
         onAddDigimonExp={onAdminAddDigimonExp}
         onEvolveForm={onEvolveDigimon}
+        onPullAnyDigimon={onAdminPullAnyDigimon}
+        onSetHatchGrade={onAdminSetHatchGrade}
+        onGrantItem={onAdminGrantItem}
+        onGrantAllDatas={onAdminGrantAllDatas}
+        onGrantAllEggs={onAdminGrantAllEggs}
+        onGrantCurrency={onAdminGrantCurrency}
+        onClearInventory={onAdminClearInventory}
+        onSwitchTamer={onAdminSwitchTamer}
+        onOpenSelectionFlow={onOpenSelectionFlow}
         onRestoreVitals={onAdminRestoreVitals}
         onTravelToMap={onTravelToMap}
         onClose={onClose}

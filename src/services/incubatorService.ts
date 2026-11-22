@@ -1,4 +1,21 @@
-import type { AccountHudPersistence, InventoryItem } from '../types/hud';
+import {
+  type DataInjectionStepConfig,
+  enrichInventoryItem,
+  getCatalogItemByKey,
+  getDataItemDefinition,
+  getHatchQualityProfile,
+  getNextInjectionStepInfo,
+  type HatchQualityProfile,
+  MAX_HATCHABLE_LEVEL,
+  MIN_HATCHABLE_LEVEL,
+} from '../data/itemsCatalog';
+import type {
+  AccountHudPersistence,
+  DataElementType,
+  HatchQualityGrade,
+  InventoryItem,
+} from '../types/hud';
+import { INVENTORY_MAX_SLOTS } from './hudGameService';
 
 export const INCUBATOR_VISIBLE_EGG_SLOTS = 4;
 export const INCUBATOR_TOTAL_TRAY_SLOTS = 5;
@@ -7,16 +24,31 @@ export interface DigiEggDisplayInfo {
   item: InventoryItem;
   speciesName: string;
   rarity: string;
+  dataType?: DataElementType;
+  iconUrl?: string;
   hatchLevel: number;
   maxHatchLevel: number;
   accentColor: string;
+  usageRequirements?: string;
+  requiredData?: {
+    itemKey: string;
+    name: string;
+    iconUrl?: string;
+    quantity: number;
+    owned: number;
+  };
   requiredMaterials: Array<{
     itemKey: string;
     name: string;
+    iconUrl?: string;
     quantity: number;
     owned: number;
   }>;
   hasAllMaterials: boolean;
+  canHatch: boolean;
+  canInjectData: boolean;
+  nextInjection: DataInjectionStepConfig | null;
+  currentQualityProfile: HatchQualityProfile | null;
 }
 
 export interface IncubatorActionResult {
@@ -24,11 +56,28 @@ export interface IncubatorActionResult {
   next: AccountHudPersistence;
   message: string;
   hatchedSpecies?: string;
+  hatchedGrade?: HatchQualityGrade;
+  qualityProfile?: HatchQualityProfile;
   newReinforceLevel?: number;
+  updatedEggId?: string;
+}
+
+export interface DataInjectionResult {
+  ok: boolean;
+  outcome: 'success' | 'fail' | 'broken' | 'error';
+  next: AccountHudPersistence;
+  message: string;
+  newLevel?: number;
+  brokeEgg?: boolean;
+  updatedEggId?: string;
 }
 
 export function isDigiEggInventoryItem(item: InventoryItem): boolean {
-  return Boolean(item.eggData) || item.itemKey.startsWith('digiegg_');
+  return (
+    item.category === 'digiegg' ||
+    Boolean(item.eggData) ||
+    item.itemKey.startsWith('digiegg_')
+  );
 }
 
 export function isEggReinforceInventoryItem(item: InventoryItem): boolean {
@@ -41,47 +90,97 @@ export function isEggReinforceInventoryItem(item: InventoryItem): boolean {
 export function getInventoryDigiEggs(
   inventory: readonly InventoryItem[]
 ): InventoryItem[] {
-  return inventory.filter(
-    (item) => item.quantity > 0 && isDigiEggInventoryItem(item)
-  );
+  return inventory
+    .filter((item) => item.quantity > 0 && isDigiEggInventoryItem(item))
+    .map(enrichInventoryItem);
 }
 
 export function getInventoryReinforceMaterials(
   inventory: readonly InventoryItem[]
 ): InventoryItem[] {
-  return inventory.filter(
-    (item) => item.quantity > 0 && isEggReinforceInventoryItem(item)
-  );
+  return inventory
+    .filter((item) => item.quantity > 0 && isEggReinforceInventoryItem(item))
+    .map(enrichInventoryItem);
 }
 
 export function getDigiEggDisplayInfo(
-  item: InventoryItem,
+  rawItem: InventoryItem,
   inventory: readonly InventoryItem[]
 ): DigiEggDisplayInfo {
+  const item = enrichInventoryItem(rawItem);
   const meta = item.eggData;
-  const requiredMaterials = (meta?.requiredMaterials ?? []).map((req) => {
+  const dataType = meta?.dataType ?? item.dataType;
+  const inferredDataDef = dataType ? getDataItemDefinition(dataType) : undefined;
+
+  const baseMaterials =
+    meta?.requiredMaterials && meta.requiredMaterials.length > 0
+      ? meta.requiredMaterials
+      : meta?.requiredDataKey || inferredDataDef
+        ? [
+            {
+              itemKey: meta?.requiredDataKey ?? inferredDataDef!.itemKey,
+              name:
+                getCatalogItemByKey(meta?.requiredDataKey ?? '')?.name ??
+                inferredDataDef?.name ??
+                'DATA',
+              quantity: Math.max(1, meta?.requiredDataQuantity ?? 5),
+            },
+          ]
+        : [];
+
+  const requiredMaterials = baseMaterials.map((req) => {
     const owned = inventory
       .filter((inv) => inv.itemKey === req.itemKey)
       .reduce((acc, inv) => acc + inv.quantity, 0);
+    const catalogDef = getCatalogItemByKey(req.itemKey);
     return {
       itemKey: req.itemKey,
-      name: req.name,
+      name: catalogDef?.name ?? req.name,
+      iconUrl: catalogDef?.iconUrl,
       quantity: Math.max(1, req.quantity),
       owned,
     };
   });
 
+  const requiredData =
+    requiredMaterials.find((m) => m.itemKey.startsWith('data_')) ??
+    requiredMaterials[0];
+
+  const hatchLevel = Math.max(
+    0,
+    Math.min(MAX_HATCHABLE_LEVEL, meta?.hatchLevel ?? 0)
+  );
+  const maxHatchLevel = Math.max(
+    MIN_HATCHABLE_LEVEL,
+    meta?.maxHatchLevel ?? MAX_HATCHABLE_LEVEL
+  );
+
   const hasAllMaterials = requiredMaterials.every((m) => m.owned >= m.quantity);
+  const nextInjection =
+    hatchLevel < maxHatchLevel ? getNextInjectionStepInfo(hatchLevel) : null;
+  const canHatch = hatchLevel >= MIN_HATCHABLE_LEVEL;
+  const canInjectData = Boolean(nextInjection && hasAllMaterials);
+  const currentQualityProfile = canHatch
+    ? getHatchQualityProfile(hatchLevel)
+    : null;
 
   return {
     item,
     speciesName: meta?.speciesName ?? item.name,
     rarity: meta?.rarity ?? 'Padrão',
-    hatchLevel: Math.max(0, meta?.hatchLevel ?? 0),
-    maxHatchLevel: Math.max(1, meta?.maxHatchLevel ?? 5),
+    dataType,
+    iconUrl: item.iconUrl,
+    hatchLevel,
+    maxHatchLevel,
     accentColor: meta?.accentColor ?? '#38e8ff',
+    usageRequirements: meta?.usageRequirements ?? item.usageInfo,
+    requiredData,
     requiredMaterials,
     hasAllMaterials,
+    canHatch,
+    canInjectData,
+    nextInjection,
+    currentQualityProfile,
   };
 }
 
@@ -121,6 +220,263 @@ function decrementInventoryEntries(
   };
 }
 
+function promoteOneEggLevel(
+  inventory: readonly InventoryItem[],
+  sourceEggId: string,
+  nextLevel: number,
+  maxHatchLevel: number
+): { nextInventory: InventoryItem[]; targetEggId: string } {
+  const sourceItem = inventory.find((i) => i.id === sourceEggId);
+  if (!sourceItem) {
+    return { nextInventory: [...inventory], targetEggId: sourceEggId };
+  }
+
+  // Try merging into an existing stack of the same itemKey at nextLevel first
+  const mergeTarget = inventory.find(
+    (i) =>
+      i.id !== sourceEggId &&
+      i.itemKey === sourceItem.itemKey &&
+      (i.eggData?.hatchLevel ?? 0) === nextLevel
+  );
+
+  if (mergeTarget && sourceItem.quantity > 1) {
+    const nextInventory = inventory.map((inv) => {
+      if (inv.id === sourceEggId) {
+        return { ...inv, quantity: inv.quantity - 1 };
+      }
+      if (inv.id === mergeTarget.id) {
+        return { ...inv, quantity: inv.quantity + 1 };
+      }
+      return inv;
+    });
+    return { nextInventory, targetEggId: mergeTarget.id };
+  }
+
+  if (mergeTarget && sourceItem.quantity === 1) {
+    const nextInventory = inventory
+      .filter((inv) => inv.id !== sourceEggId)
+      .map((inv) =>
+        inv.id === mergeTarget.id
+          ? { ...inv, quantity: inv.quantity + 1 }
+          : inv
+      );
+    return { nextInventory, targetEggId: mergeTarget.id };
+  }
+
+  const baseMeta = sourceItem.eggData ?? {
+    speciesName: sourceItem.name,
+    rarity: 'Padrão',
+    hatchLevel: 0,
+    maxHatchLevel,
+  };
+
+  if (sourceItem.quantity === 1) {
+    const nextInventory = inventory.map((inv) =>
+      inv.id === sourceEggId
+        ? {
+            ...inv,
+            eggData: {
+              ...baseMeta,
+              hatchLevel: nextLevel,
+              maxHatchLevel,
+            },
+          }
+        : inv
+    );
+    return { nextInventory, targetEggId: sourceEggId };
+  }
+
+  const splitId = `${sourceItem.itemKey}_lv${nextLevel}_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 5)}`;
+  const nextInventory: InventoryItem[] = [];
+  for (const inv of inventory) {
+    if (inv.id !== sourceEggId) {
+      nextInventory.push(inv);
+      continue;
+    }
+    nextInventory.push({
+      ...inv,
+      quantity: inv.quantity - 1,
+    });
+    nextInventory.push({
+      ...inv,
+      id: splitId,
+      quantity: 1,
+      eggData: {
+        ...baseMeta,
+        hatchLevel: nextLevel,
+        maxHatchLevel,
+      },
+    });
+  }
+  return { nextInventory, targetEggId: splitId };
+}
+
+/**
+ * Valida se o jogador pode inserir DATA neste DigiEgg para tentar avancar o estagio (0/5 -> 5/5).
+ */
+export function validateDataInjection(
+  state: AccountHudPersistence,
+  eggItemId: string | null
+): { ok: boolean; info?: DigiEggDisplayInfo; error?: string } {
+  if (!eggItemId) {
+    return {
+      ok: false,
+      error: 'Selecione um DigiEgg disponível no inventário para inserir DATA.',
+    };
+  }
+
+  const eggItem = state.inventory.find(
+    (item) =>
+      item.id === eggItemId && item.quantity > 0 && isDigiEggInventoryItem(item)
+  );
+  if (!eggItem) {
+    return {
+      ok: false,
+      error: 'Este DigiEgg não está mais disponível no inventário.',
+    };
+  }
+
+  const info = getDigiEggDisplayInfo(eggItem, state.inventory);
+  if (!info.nextInjection || info.hatchLevel >= info.maxHatchLevel) {
+    return {
+      ok: false,
+      info,
+      error: `${eggItem.name} já atingiu o estágio máximo ${info.maxHatchLevel}/${info.maxHatchLevel} (Muito Forte)!`,
+    };
+  }
+
+  if (!info.hasAllMaterials) {
+    const missing = info.requiredMaterials
+      .filter((m) => m.owned < m.quantity)
+      .map((m) => `${m.name} (${m.owned}/${m.quantity})`)
+      .join(', ');
+    return {
+      ok: false,
+      info,
+      error: `DATA insuficiente para tentar ${info.nextInjection.toLevel}/5: ${missing}.`,
+    };
+  }
+
+  // If stacked > 1 and no matching next-level stack exists yet, verify inventory slot limit
+  if (eggItem.quantity > 1) {
+    const nextLevel = info.nextInjection.toLevel;
+    const hasMergeTarget = state.inventory.some(
+      (i) =>
+        i.id !== eggItem.id &&
+        i.itemKey === eggItem.itemKey &&
+        (i.eggData?.hatchLevel ?? 0) === nextLevel
+    );
+    if (!hasMergeTarget && state.inventory.length >= INVENTORY_MAX_SLOTS) {
+      return {
+        ok: false,
+        info,
+        error: `Inventário cheio (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS} slots) para separar este DigiEgg.`,
+      };
+    }
+  }
+
+  return { ok: true, info };
+}
+
+/**
+ * Executa uma tentativa estilo DMO de inserir DATA no DigiEgg selecionado.
+ * Consome os materiais configurados e aplica as chances reais de sucesso e quebra.
+ */
+export function executeDataInjection(
+  state: AccountHudPersistence,
+  eggItemId: string | null,
+  rng: () => number = Math.random
+): DataInjectionResult {
+  const check = validateDataInjection(state, eggItemId);
+  if (!check.ok || !check.info || !check.info.nextInjection) {
+    return {
+      ok: false,
+      outcome: 'error',
+      next: state,
+      message: check.error ?? 'Não foi possível inserir DATA neste DigiEgg.',
+    };
+  }
+
+  const { info } = check;
+  const step = info.nextInjection!;
+  const consumptions = info.requiredMaterials.map((m) => ({
+    itemKey: m.itemKey,
+    quantity: m.quantity,
+  }));
+
+  const afterData = decrementInventoryEntries(state.inventory, consumptions);
+  if (!afterData.ok) {
+    return {
+      ok: false,
+      outcome: 'error',
+      next: state,
+      message: afterData.error ?? 'DATA insuficiente no inventário.',
+    };
+  }
+
+  const rollSuccess = rng();
+  if (rollSuccess < step.successChance) {
+    const promoted = promoteOneEggLevel(
+      afterData.next,
+      info.item.id,
+      step.toLevel,
+      info.maxHatchLevel
+    );
+    const qualityNote =
+      step.toLevel >= MIN_HATCHABLE_LEVEL
+        ? ` · ${getHatchQualityProfile(step.toLevel).label} (${getHatchQualityProfile(step.toLevel).qualityName}) liberado!`
+        : ' (continue até 3/5 para liberar chocagem)';
+
+    return {
+      ok: true,
+      outcome: 'success',
+      next: {
+        ...state,
+        inventory: promoted.nextInventory,
+        updatedAt: new Date().toISOString(),
+      },
+      newLevel: step.toLevel,
+      updatedEggId: promoted.targetEggId,
+      message: `Sucesso! ${info.item.name} avançou para ${step.toLevel}/${info.maxHatchLevel}${qualityNote}`,
+    };
+  }
+
+  // Failed attempt — roll break risk if applicable (steps >= 2/5 -> 3/5+)
+  const rollBreak = rng();
+  if (step.breakChanceOnFail > 0 && rollBreak < step.breakChanceOnFail) {
+    const afterBreak = decrementInventoryEntries(afterData.next, [
+      { id: info.item.id, quantity: 1 },
+    ]);
+    return {
+      ok: true,
+      outcome: 'broken',
+      brokeEgg: true,
+      next: {
+        ...state,
+        inventory: afterBreak.ok ? afterBreak.next : afterData.next,
+        updatedAt: new Date().toISOString(),
+      },
+      message: `Falha crítica! O ${info.item.name} (${info.hatchLevel}/${info.maxHatchLevel}) quebrou ao tentar ${step.toLevel}/5.`,
+    };
+  }
+
+  return {
+    ok: true,
+    outcome: 'fail',
+    brokeEgg: false,
+    updatedEggId: info.item.id,
+    next: {
+      ...state,
+      inventory: afterData.next,
+      updatedAt: new Date().toISOString(),
+    },
+    newLevel: info.hatchLevel,
+    message: `A inserção de DATA falhou (${Math.round(step.successChance * 100)}% de chance), mas ${info.item.name} resistiu em ${info.hatchLevel}/${info.maxHatchLevel}.`,
+  };
+}
+
 export function validateDigiEggHatch(
   state: AccountHudPersistence,
   eggItemId: string | null
@@ -144,15 +500,12 @@ export function validateDigiEggHatch(
   }
 
   const info = getDigiEggDisplayInfo(eggItem, state.inventory);
-  if (!info.hasAllMaterials) {
-    const missing = info.requiredMaterials
-      .filter((m) => m.owned < m.quantity)
-      .map((m) => `${m.name} (${m.owned}/${m.quantity})`)
-      .join(', ');
+
+  if (info.hatchLevel < MIN_HATCHABLE_LEVEL) {
     return {
       ok: false,
       info,
-      error: `Materiais insuficientes para chocar: ${missing}.`,
+      error: `Chocagem bloqueada em ${info.hatchLevel}/5! No DATS, DigiEggs só podem ser chocados a partir de 3/5 (Aceitável), 4/5 (Forte) ou 5/5 (Muito Forte).`,
     };
   }
 
@@ -172,24 +525,23 @@ export function executeDigiEggHatch(
     };
   }
 
-  const consumptions: Array<{ id?: string; itemKey?: string; quantity: number }> = [
+  // DATA was already consumed during the 0/5 -> 3/5..5/5 phase injections; final hatch consumes 1 prepared DigiEgg
+  const consumed = decrementInventoryEntries(state.inventory, [
     { id: check.info.item.id, quantity: 1 },
-    ...check.info.requiredMaterials.map((m) => ({
-      itemKey: m.itemKey,
-      quantity: m.quantity,
-    })),
-  ];
-
-  const consumed = decrementInventoryEntries(state.inventory, consumptions);
+  ]);
   if (!consumed.ok) {
     return {
       ok: false,
       next: state,
-      message: consumed.error ?? 'Falha ao consumir os itens necessários.',
+      message: consumed.error ?? 'Falha ao processar o DigiEgg selecionado.',
     };
   }
 
+  const grade: HatchQualityGrade =
+    check.info.hatchLevel >= 5 ? 5 : check.info.hatchLevel >= 4 ? 4 : 3;
+  const qualityProfile = getHatchQualityProfile(grade);
   const hatchedSpecies = check.info.speciesName;
+
   return {
     ok: true,
     next: {
@@ -198,7 +550,9 @@ export function executeDigiEggHatch(
       updatedAt: new Date().toISOString(),
     },
     hatchedSpecies,
-    message: `Chocagem concluída com sucesso! ${check.info.item.name} (${hatchedSpecies}) foi processado pela Incubadora DATS.`,
+    hatchedGrade: grade,
+    qualityProfile,
+    message: `Chocagem ${qualityProfile.label} (${qualityProfile.qualityName} · ${qualityProfile.statMultiplier.toFixed(2)}× atributos) concluída! ${check.info.item.name} foi processado na Incubadora DATS.`,
   };
 }
 
@@ -235,7 +589,7 @@ export function validateEggReinforce(
     return {
       ok: false,
       eggInfo,
-      error: `${eggItem.name} já atingiu o nível máximo de reforço (${eggInfo.maxHatchLevel}/${eggInfo.maxHatchLevel}).`,
+      error: `${eggItem.name} já atingiu o nível máximo (${eggInfo.maxHatchLevel}/${eggInfo.maxHatchLevel}).`,
     };
   }
 
@@ -305,52 +659,22 @@ export function executeEggReinforce(
     check.eggInfo.hatchLevel + step
   );
 
-  // If stacked > 1, split 1 reinforced egg instance safely without duplicating items
-  const nextInventory: InventoryItem[] = [];
-  for (const invItem of consumed.next) {
-    if (invItem.id !== check.eggInfo.item.id) {
-      nextInventory.push(invItem);
-      continue;
-    }
-    const baseMeta = invItem.eggData ?? {
-      speciesName: invItem.name,
-      rarity: 'Padrão',
-      hatchLevel: 0,
-      maxHatchLevel: check.eggInfo.maxHatchLevel,
-    };
-    if (invItem.quantity > 1) {
-      nextInventory.push({
-        ...invItem,
-        quantity: invItem.quantity - 1,
-      });
-      nextInventory.push({
-        ...invItem,
-        id: `${invItem.id}_rf_${nextLevel}_${Date.now()}`,
-        quantity: 1,
-        eggData: {
-          ...baseMeta,
-          hatchLevel: nextLevel,
-        },
-      });
-    } else {
-      nextInventory.push({
-        ...invItem,
-        eggData: {
-          ...baseMeta,
-          hatchLevel: nextLevel,
-        },
-      });
-    }
-  }
+  const promoted = promoteOneEggLevel(
+    consumed.next,
+    check.eggInfo.item.id,
+    nextLevel,
+    check.eggInfo.maxHatchLevel
+  );
 
   return {
     ok: true,
     next: {
       ...state,
-      inventory: nextInventory,
+      inventory: promoted.nextInventory,
       updatedAt: new Date().toISOString(),
     },
     newReinforceLevel: nextLevel,
-    message: `Reforço concluído! ${check.eggInfo.item.name} avançou para Nível ${nextLevel}/${check.eggInfo.maxHatchLevel}.`,
+    updatedEggId: promoted.targetEggId,
+    message: `Reforço concluído! ${check.eggInfo.item.name} avançou para ${nextLevel}/${check.eggInfo.maxHatchLevel}.`,
   };
 }

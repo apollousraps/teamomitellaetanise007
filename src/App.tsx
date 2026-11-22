@@ -22,6 +22,8 @@ import {
   authService,
   getSavedCharacterForAccount,
   getSavedStarterDigimonForAccount,
+  overrideCharacterForGm,
+  overrideStarterDigimonForGm,
   rememberUsernameEmailAlias,
 } from './services/authService';
 import {
@@ -35,8 +37,8 @@ import type {
   AuthUserSummary,
   ModalSection,
 } from './types/auth';
-import type { SavedCharacterSelection } from './types/character';
-import type { SavedStarterDigimon } from './types/digimon';
+import type { SavedCharacterSelection, TamerId } from './types/character';
+import type { SavedStarterDigimon, StarterDigimonId } from './types/digimon';
 import { selectionThemePlayer } from './utils/soundFx';
 
 type AppScreen = 'login' | 'character-select' | 'digimon-select' | 'world';
@@ -234,6 +236,31 @@ export default function App() {
     setActiveScreen('world');
   }
 
+  function handleAdminSwitchStarter(starterId: StarterDigimonId) {
+    const accountName =
+      selectedTamer?.accountUsername ?? authenticatedUser?.username ?? 'TamerTeste';
+    const nextStarter = overrideStarterDigimonForGm({
+      accountUsername: accountName,
+      digimonId: starterId,
+    });
+    setSelectedDigimon(nextStarter);
+  }
+
+  function handleAdminSwitchTamer(characterId: TamerId) {
+    const accountName =
+      selectedTamer?.accountUsername ?? authenticatedUser?.username ?? 'TamerTeste';
+    const nextTamer = overrideCharacterForGm({
+      accountUsername: accountName,
+      characterId,
+      tamerName: selectedTamer?.tamerName,
+    });
+    setSelectedTamer(nextTamer);
+  }
+
+  function handleOpenSelectionFlow(screen: 'character-select' | 'digimon-select') {
+    setActiveScreen(screen);
+  }
+
   async function handleBackToLogin() {
     selectionThemePlayer.stop();
     await authService.signOutAccount();
@@ -345,9 +372,7 @@ export default function App() {
             soundEnabled={preferences.soundEnabled}
             animationsEnabled={showMotion}
             onToggleSound={handleToggleSound}
-            onBackToCharacterSelect={() => {
-              void handleBackToLogin();
-            }}
+            onBackToCharacterSelect={() => setActiveScreen('character-select')}
             onConfirmStarter={handleConfirmStarter}
           />
         ) : (
@@ -361,6 +386,9 @@ export default function App() {
               cloudIsGm={Boolean(authenticatedUser?.isGM)}
               onUpdatePreferences={setPreferences}
               onOpenFeedback={handleOpenFeedback}
+              onAdminSwitchStarter={handleAdminSwitchStarter}
+              onAdminSwitchTamer={handleAdminSwitchTamer}
+              onOpenSelectionFlow={handleOpenSelectionFlow}
               onExitToLogin={() => {
                 void (async () => {
                   await flushPendingCloudSaves();

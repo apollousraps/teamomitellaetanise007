@@ -224,8 +224,8 @@ function AnimatedTamerCanvas({
       ref={canvasRef}
       className={
         size === 'hero'
-          ? 'h-[225px] w-[245px] select-none sm:h-[260px] sm:w-[280px]'
-          : 'h-[88px] w-[84px] select-none sm:h-[110px] sm:w-[104px]'
+          ? 'h-[176px] w-[200px] select-none sm:h-[260px] sm:w-[280px]'
+          : 'h-[72px] w-[68px] select-none sm:h-[110px] sm:w-[104px]'
       }
       aria-hidden="true"
     />
@@ -458,7 +458,7 @@ export function CharacterSelectScreen({
       <form
         onSubmit={handleConfirm}
         noValidate
-        className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-4 px-3 py-3 sm:px-5 sm:py-5 lg:grid lg:grid-cols-12 lg:items-center lg:gap-6"
+        className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-3.5 px-3 py-3 pb-6 sm:gap-4 sm:px-5 sm:py-5 lg:grid lg:grid-cols-12 lg:items-center lg:gap-6"
       >
         {/* Left Column: Live Animated Holographic Showcase + 4 Moving Tamer Cards */}
         <div className="flex flex-col gap-3 lg:col-span-7">
@@ -498,7 +498,7 @@ export function CharacterSelectScreen({
                       prev === 'walk' ? 'idle' : 'walk'
                     );
                   }}
-                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
+                  className={`inline-flex min-h-[42px] items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
                     movementState === 'walk'
                       ? 'border-cyan-300/80 bg-cyan-500/20 text-cyan-100'
                       : 'border-white/15 bg-white/5 text-sky-200 hover:bg-white/10'
@@ -522,7 +522,7 @@ export function CharacterSelectScreen({
                   }}
                   aria-pressed={autoRotate}
                   title="Girar automaticamente"
-                  className={`inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
+                  className={`inline-flex min-h-[42px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
                     autoRotate
                       ? 'border-amber-300/80 bg-amber-400/20 text-amber-100'
                       : 'border-white/15 bg-white/5 text-sky-200 hover:bg-white/10'
@@ -587,7 +587,7 @@ export function CharacterSelectScreen({
                       setAutoRotate(false);
                       setDirection(opt.dir);
                     }}
-                    className={`min-h-[38px] rounded-lg border text-[11px] font-bold transition-colors ${
+                    className={`min-h-[42px] rounded-lg border text-[11px] font-bold transition-colors ${
                       isActive
                         ? 'border-cyan-300 bg-cyan-500/25 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
                         : 'border-white/10 bg-[#051538]/80 text-sky-200/80 hover:border-cyan-400/40 hover:text-white'
@@ -604,7 +604,7 @@ export function CharacterSelectScreen({
           <div
             role="radiogroup"
             aria-label="Lista de Tamers disponíveis"
-            className="grid grid-cols-4 gap-2 sm:gap-3"
+            className="grid grid-cols-4 gap-1.5 sm:gap-3"
           >
             {TAMER_CHARACTERS.map((char) => {
               const isSelected = char.id === selectedId;
@@ -783,7 +783,7 @@ export function CharacterSelectScreen({
               onBlur={handleNameBlur}
               placeholder="Digite o nome do seu Tamer..."
               aria-invalid={Boolean(nameError)}
-              className={`min-h-[48px] w-full rounded-xl border-2 bg-[#020c26] px-3.5 text-sm font-bold text-white placeholder:font-medium placeholder:text-sky-300/45 focus:outline-none focus:ring-2 ${
+              className={`min-h-[48px] w-full rounded-xl border-2 bg-[#020c26] px-3.5 text-base font-bold text-white placeholder:font-medium placeholder:text-sky-300/45 focus:outline-none focus:ring-2 sm:text-sm ${
                 nameError
                   ? 'border-rose-400/80 focus:ring-rose-300/60'
                   : 'border-cyan-400/45 focus:border-cyan-300 focus:ring-cyan-300/40'

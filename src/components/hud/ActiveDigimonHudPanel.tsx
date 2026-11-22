@@ -1,3 +1,4 @@
+import { getHatchQualityProfile } from '../../data/itemsCatalog';
 import {
   SKILL_F1_DS_COST,
   SKILL_F2_DS_COST,
@@ -38,6 +39,7 @@ export function ActiveDigimonHudPanel({
   onTriggerSkill,
   onOpenDigimon,
 }: ActiveDigimonHudPanelProps) {
+  const qualityProfile = getHatchQualityProfile(stats.hatchGrade);
   const hpPct = Math.max(0, Math.min(100, (stats.hp / Math.max(1, stats.maxHp)) * 100));
   const dsPct = Math.max(0, Math.min(100, (stats.ds / Math.max(1, stats.maxDs)) * 100));
   const expPct = Math.max(
@@ -106,7 +108,7 @@ export function ActiveDigimonHudPanel({
       <button
         type="button"
         onClick={onOpenDigimon}
-        title={`Abrir detalhes de ${digimon.name} (${digimon.stage}) · EXP ${stats.exp}/${stats.expToNext}`}
+        title={`Abrir detalhes de ${digimon.name} (${digimon.stage} · ${qualityProfile.label} ${qualityProfile.qualityName}) · EXP ${stats.exp}/${stats.expToNext}`}
         className={`group relative flex items-center text-left transition-transform active:scale-[0.99] ${
           levelUpPulse ? 'drop-shadow-[0_0_16px_rgba(255,212,59,0.9)]' : ''
         }`}
@@ -125,6 +127,15 @@ export function ActiveDigimonHudPanel({
               className="h-full w-full object-contain"
             />
           </div>
+
+          {/* Top-left Compact Grade Badge (3/5, 4/5, 5/5) */}
+          <span
+            title={`Qualidade: ${qualityProfile.label} · ${qualityProfile.qualityName} (${qualityProfile.statMultiplier.toFixed(2)}×)`}
+            className="dmo-frame absolute -top-1 -left-1 z-30 flex h-4.5 items-center justify-center rounded-full px-1 text-[8.5px] font-black tabular-nums"
+            style={{ color: qualityProfile.badgeColor }}
+          >
+            {qualityProfile.label}
+          </span>
 
           {/* Bottom-left Circular Level Badge */}
           <span

@@ -21,45 +21,8 @@ import {
   validateLoginIdentifier,
   validatePassword,
 } from '../services/authService';
-import { TAMER_CHARACTERS } from '../sprites/tamerSprites';
 import type { AuthUserSummary, ModalSection } from '../types/auth';
-import type { TamerId } from '../types/character';
-import {
-  DIGIMON_FORM_PROFILES,
-  EVOLUTION_FORM_CHAINS,
-  getDigimonFormProfile,
-  type DigimonFormId,
-  type StarterDigimonId,
-} from '../types/digimon';
 import { playDigitalTone } from '../utils/soundFx';
-
-const LAST_TEST_FORM_KEY = 'dw_test_last_form_id';
-const LAST_TEST_TAMER_KEY = 'dw_test_last_tamer_id';
-const STARTER_LINE_ORDER: readonly { id: StarterDigimonId; label: string; dotClass: string }[] = [
-  { id: 'agumon', label: 'Fogo', dotClass: 'bg-amber-400' },
-  { id: 'gaomon', label: 'Velocidade', dotClass: 'bg-sky-400' },
-  { id: 'lalamon', label: 'Natureza', dotClass: 'bg-fuchsia-400' },
-];
-
-function getInitialTestFormId(): DigimonFormId {
-  try {
-    const raw = window.localStorage.getItem(LAST_TEST_FORM_KEY) as DigimonFormId | null;
-    if (raw && raw in DIGIMON_FORM_PROFILES) return raw;
-  } catch {
-    // Ignore storage unavailability
-  }
-  return 'agumon';
-}
-
-function getInitialTestTamerId(): TamerId {
-  try {
-    const raw = window.localStorage.getItem(LAST_TEST_TAMER_KEY) as TamerId | null;
-    if (raw && TAMER_CHARACTERS.some((t) => t.id === raw)) return raw;
-  } catch {
-    // Ignore storage unavailability
-  }
-  return 'kai';
-}
 
 interface LoginCardProps {
   soundEnabled: boolean;
@@ -86,38 +49,10 @@ export function LoginCard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
-  const [selectedTestFormId, setSelectedTestFormId] = useState<DigimonFormId>(
-    getInitialTestFormId
-  );
-  const [selectedTestTamerId, setSelectedTestTamerId] = useState<TamerId>(
-    getInitialTestTamerId
-  );
   const [statusFeedback, setStatusFeedback] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
-
-  const selectedTestForm = getDigimonFormProfile(selectedTestFormId);
-
-  function handleSelectTestForm(formId: DigimonFormId) {
-    playDigitalTone('click', soundEnabled);
-    setSelectedTestFormId(formId);
-    try {
-      window.localStorage.setItem(LAST_TEST_FORM_KEY, formId);
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
-  function handleSelectTestTamer(tamerId: TamerId) {
-    playDigitalTone('click', soundEnabled);
-    setSelectedTestTamerId(tamerId);
-    try {
-      window.localStorage.setItem(LAST_TEST_TAMER_KEY, tamerId);
-    } catch {
-      // Ignore storage errors
-    }
-  }
 
   function handleUsernameChange(value: string) {
     setUsername(value);
@@ -228,14 +163,14 @@ export function LoginCard({
   function handleQuickTestEnter() {
     if (isSubmitting || isGoogleLoading) return;
     prepareQuickTestSession({
-      formId: selectedTestFormId,
-      tamerId: selectedTestTamerId,
+      formId: 'agumon',
+      tamerId: 'kai',
       accountUsername: 'TamerTeste',
     });
     playDigitalTone('confirm', soundEnabled);
     setStatusFeedback({
       type: 'success',
-      text: `Entrando com ${selectedTestForm.name} (Nv. ${selectedTestForm.unlockLevel}) e Painel GM ativo...`,
+      text: 'Entrando automaticamente no Mundo Digital...',
     });
     if (onLoginSuccess) {
       onLoginSuccess({
@@ -243,7 +178,7 @@ export function LoginCard({
         username: 'TamerTeste',
         persistence: 'local',
         authProvider: 'password',
-        isGM: false,
+        isGM: true,
       });
     }
   }
@@ -295,14 +230,42 @@ export function LoginCard({
       {/* Outer glowing neon-blue chamfered frame */}
       <div className="clip-cyber-panel bg-gradient-to-b from-[#2be3ff] via-[#0073ff] to-[#2be3ff] p-[1.5px] shadow-[0_0_28px_rgba(0,174,255,0.42)]">
         {/* Inner dark translucent cyber panel */}
-        <div className="clip-cyber-panel relative bg-gradient-to-b from-[#071a42]/95 via-[#04102b]/95 to-[#06183c]/95 px-4 pb-4 pt-4 backdrop-blur-md sm:px-5 sm:pb-5 sm:pt-5">
+        <div className="clip-cyber-panel relative bg-gradient-to-b from-[#071a42]/95 via-[#04102b]/95 to-[#06183c]/95 px-3.5 pb-4 pt-3.5 backdrop-blur-md sm:px-5 sm:pb-5 sm:pt-4">
           {/* Subtle top inner glow bar */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute left-1/2 top-0 h-[2px] w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-90"
           />
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-3">
+          <form onSubmit={handleSubmit} noValidate className="space-y-2.5">
+            {/* BOTÃO ÚNICO DE ENTRADA AUTOMÁTICA (SEM LOGIN) */}
+            <div className="clip-cyber-btn bg-gradient-to-r from-[#5efce8] via-[#22d3ee] to-[#fbbf24] p-[1.5px] shadow-[0_0_20px_rgba(34,211,238,0.42)] transition-transform duration-150 hover:brightness-110 active:scale-[0.985]">
+              <button
+                type="button"
+                disabled={isSubmitting || isGoogleLoading}
+                onClick={handleQuickTestEnter}
+                className="clip-cyber-btn relative flex min-h-[50px] w-full items-center justify-center gap-2 bg-gradient-to-r from-[#07335e] via-[#094775] to-[#08305c] px-4 py-2.5 text-center font-extrabold tracking-wide text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 disabled:opacity-75"
+              >
+                <Zap className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+                <span className="whitespace-nowrap text-[13px] tracking-wider text-amber-100 sm:text-sm">
+                  ENTRAR AUTOMATICAMENTE
+                </span>
+                <ChevronsRight
+                  className="h-4 w-4 shrink-0 text-cyan-300"
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+
+            {/* Divisor */}
+            <div className="flex items-center gap-2.5 pt-0.5" aria-hidden="true">
+              <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-sky-400/50 to-sky-300/75" />
+              <span className="text-[11px] font-bold tracking-wide text-sky-200/90">
+                ou entre com sua conta
+              </span>
+              <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-sky-400/50 to-sky-300/75" />
+            </div>
+
             {/* 1. CAMPO DE USUÁRIO OU E-MAIL */}
             <div>
               <label htmlFor="login-username" className="sr-only">
@@ -315,9 +278,9 @@ export function LoginCard({
                     : 'bg-gradient-to-r from-[#1354a8] via-[#26a4ff] to-[#1354a8] focus-within:from-[#00e1ff] focus-within:via-[#6beeff] focus-within:to-[#00e1ff] focus-within:shadow-[0_0_14px_rgba(0,225,255,0.45)]'
                 }`}
               >
-                <div className="clip-cyber-input flex min-h-[48px] items-center bg-[#040e24]/95">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center border-r border-sky-400/20 bg-sky-950/35 text-sky-100">
-                    <User className="h-5 w-5" aria-hidden="true" />
+                <div className="clip-cyber-input flex min-h-[46px] items-center bg-[#040e24]/95">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center border-r border-sky-400/20 bg-sky-950/35 text-sky-100">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                   </div>
                   <input
                     id="login-username"
@@ -335,7 +298,7 @@ export function LoginCard({
                     aria-describedby={
                       usernameError ? 'login-username-error' : undefined
                     }
-                    className="h-12 w-full bg-transparent px-3.5 text-[15px] font-medium text-white placeholder:text-slate-400 focus:outline-none"
+                    className="h-11 w-full bg-transparent px-3 text-[16px] font-medium text-white placeholder:text-slate-400 focus:outline-none sm:text-[15px]"
                   />
                 </div>
               </div>
@@ -343,7 +306,7 @@ export function LoginCard({
                 <p
                   id="login-username-error"
                   role="alert"
-                  className="mt-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-[#ff8fa3]"
+                  className="mt-1 flex items-center gap-1.5 px-1 text-xs font-medium text-[#ff8fa3]"
                 >
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span>{usernameError}</span>
@@ -363,9 +326,9 @@ export function LoginCard({
                     : 'bg-gradient-to-r from-[#1354a8] via-[#26a4ff] to-[#1354a8] focus-within:from-[#00e1ff] focus-within:via-[#6beeff] focus-within:to-[#00e1ff] focus-within:shadow-[0_0_14px_rgba(0,225,255,0.45)]'
                 }`}
               >
-                <div className="clip-cyber-input flex min-h-[48px] items-center bg-[#040e24]/95">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center border-r border-sky-400/20 bg-sky-950/35 text-sky-100">
-                    <Lock className="h-5 w-5" aria-hidden="true" />
+                <div className="clip-cyber-input flex min-h-[46px] items-center bg-[#040e24]/95">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center border-r border-sky-400/20 bg-sky-950/35 text-sky-100">
+                    <Lock className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
                   </div>
                   <input
                     id="login-password"
@@ -380,7 +343,7 @@ export function LoginCard({
                     aria-describedby={
                       passwordError ? 'login-password-error' : undefined
                     }
-                    className="h-12 w-full bg-transparent pl-3.5 pr-1 text-[15px] font-medium text-white placeholder:text-slate-400 focus:outline-none"
+                    className="h-11 w-full bg-transparent pl-3 pr-1 text-[16px] font-medium text-white placeholder:text-slate-400 focus:outline-none sm:text-[15px]"
                   />
                   <button
                     type="button"
@@ -390,7 +353,7 @@ export function LoginCard({
                     }}
                     aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                     aria-pressed={showPassword}
-                    className="flex h-12 min-w-[46px] shrink-0 items-center justify-center text-slate-300 transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                    className="flex h-11 min-w-[44px] shrink-0 items-center justify-center text-slate-300 transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                   >
                     {showPassword ? (
                       <Eye className="h-5 w-5" aria-hidden="true" />
@@ -404,7 +367,7 @@ export function LoginCard({
                 <p
                   id="login-password-error"
                   role="alert"
-                  className="mt-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-[#ff8fa3]"
+                  className="mt-1 flex items-center gap-1.5 px-1 text-xs font-medium text-[#ff8fa3]"
                 >
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span>{passwordError}</span>
@@ -413,8 +376,8 @@ export function LoginCard({
             </div>
 
             {/* 3. OPÇÕES: Lembrar-me & Esqueci minha senha */}
-            <div className="flex items-center justify-between gap-2 pt-0.5">
-              <label className="group flex min-h-[44px] cursor-pointer items-center gap-2.5 select-none">
+            <div className="flex items-center justify-between gap-2">
+              <label className="group flex min-h-[44px] cursor-pointer items-center gap-2 select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -458,7 +421,7 @@ export function LoginCard({
               <div
                 role="status"
                 aria-live="polite"
-                className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium leading-relaxed ${
+                className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs font-medium leading-relaxed ${
                   statusFeedback.type === 'success'
                     ? 'border-emerald-400/50 bg-emerald-950/60 text-emerald-100'
                     : 'border-rose-400/50 bg-rose-950/60 text-rose-100'
@@ -481,12 +444,12 @@ export function LoginCard({
 
             {/* Inline Email Verification Actions when required */}
             {needsVerification && (
-              <div className="grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/35 bg-[#051538]/90 p-2.5">
+              <div className="grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/35 bg-[#051538]/90 p-2">
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleCheckVerification}
-                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-lg bg-emerald-500/25 border border-emerald-400/60 px-2.5 text-[11px] font-extrabold text-emerald-100 transition-colors hover:bg-emerald-500/35 disabled:opacity-60"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-emerald-400/60 bg-emerald-500/25 px-2.5 text-[11px] font-extrabold text-emerald-100 transition-colors hover:bg-emerald-500/35 disabled:opacity-60"
                 >
                   <MailCheck className="h-3.5 w-3.5 shrink-0" />
                   <span>Já confirmei</span>
@@ -495,7 +458,7 @@ export function LoginCard({
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleResendVerification}
-                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-lg border border-cyan-400/50 bg-cyan-500/15 px-2.5 text-[11px] font-extrabold text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:opacity-60"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-cyan-400/50 bg-cyan-500/15 px-2.5 text-[11px] font-extrabold text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:opacity-60"
                 >
                   <RefreshCw className="h-3.5 w-3.5 shrink-0" />
                   <span>Reenviar link</span>
@@ -504,12 +467,12 @@ export function LoginCard({
             )}
 
             {/* 4A. BOTÃO ENTRAR (Dourado com efeitos luminosos) */}
-            <div className="pt-0.5">
-              <div className="clip-cyber-btn bg-gradient-to-b from-[#fff5b8] via-[#ffb703] to-[#cc5800] p-[1.5px] shadow-[0_0_22px_rgba(255,174,0,0.6)] transition-transform duration-150 hover:brightness-110 active:scale-[0.985]">
+            <div>
+              <div className="clip-cyber-btn bg-gradient-to-b from-[#fff5b8] via-[#ffb703] to-[#cc5800] p-[1.5px] shadow-[0_0_20px_rgba(255,174,0,0.55)] transition-transform duration-150 hover:brightness-110 active:scale-[0.985]">
                 <button
                   type="submit"
                   disabled={isSubmitting || isGoogleLoading}
-                  className="clip-cyber-btn relative flex min-h-[48px] w-full items-center justify-center gap-2 bg-gradient-to-b from-[#ffe259] via-[#ffa718] to-[#e66f00] px-6 py-2.5 font-[family-name:var(--font-display)] text-[19px] tracking-wider text-[#081226] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait disabled:opacity-85 sm:text-[21px]"
+                  className="clip-cyber-btn relative flex min-h-[46px] w-full items-center justify-center gap-2 bg-gradient-to-b from-[#ffe259] via-[#ffa718] to-[#e66f00] px-6 py-2 font-[family-name:var(--font-display)] text-[18px] tracking-wider text-[#081226] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait disabled:opacity-85 sm:text-[20px]"
                 >
                   <span
                     aria-hidden="true"
@@ -540,22 +503,13 @@ export function LoginCard({
               </div>
             </div>
 
-            {/* Divisor "ou" */}
-            <div className="flex items-center gap-3 py-0.5" aria-hidden="true">
-              <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-sky-400/55 to-sky-300/80" />
-              <span className="text-xs font-bold tracking-wide text-slate-200">
-                ou
-              </span>
-              <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-sky-400/55 to-sky-300/80" />
-            </div>
-
-            {/* 4B. BOTÃO ENTRAR COM GOOGLE (Salvamento em Nuvem Instantâneo) */}
-            <div>
+            {/* 4B & 4C. GOOGLE + CRIAR CONTA */}
+            <div className="grid grid-cols-1 gap-2 pt-0.5">
               <button
                 type="button"
                 disabled={isSubmitting || isGoogleLoading}
                 onClick={handleGoogleSignIn}
-                className="flex min-h-[46px] w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-extrabold tracking-wide text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:bg-slate-50 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-wait disabled:opacity-75"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-4 py-2 text-[13.5px] font-extrabold tracking-wide text-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-transform duration-150 hover:bg-slate-50 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-wait disabled:opacity-75 sm:text-sm"
               >
                 {isGoogleLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-slate-700" />
@@ -587,11 +541,8 @@ export function LoginCard({
                   {isGoogleLoading ? 'CONECTANDO...' : 'ENTRAR COM GOOGLE'}
                 </span>
               </button>
-            </div>
 
-            {/* 4C. BOTÃO CRIAR CONTA (Azul neon) */}
-            <div>
-              <div className="clip-cyber-btn bg-gradient-to-b from-[#78f0ff] via-[#1aa3ff] to-[#0055d4] p-[1.5px] shadow-[0_0_18px_rgba(0,174,255,0.5)] transition-transform duration-150 hover:brightness-110 active:scale-[0.985]">
+              <div className="clip-cyber-btn bg-gradient-to-b from-[#78f0ff] via-[#1aa3ff] to-[#0055d4] p-[1.5px] shadow-[0_0_16px_rgba(0,174,255,0.45)] transition-transform duration-150 hover:brightness-110 active:scale-[0.985]">
                 <button
                   type="button"
                   disabled={isSubmitting || isGoogleLoading}
@@ -599,138 +550,16 @@ export function LoginCard({
                     playDigitalTone('click', soundEnabled);
                     onOpenModal('register');
                   }}
-                  className="clip-cyber-btn relative flex min-h-[46px] w-full items-center justify-center gap-2.5 bg-gradient-to-b from-[#21a8ff] via-[#006be6] to-[#0041a8] px-5 py-2.5 text-[15px] font-extrabold tracking-wider text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-75 sm:text-base"
+                  className="clip-cyber-btn relative flex min-h-[44px] w-full items-center justify-center gap-2 bg-gradient-to-b from-[#21a8ff] via-[#006be6] to-[#0041a8] px-5 py-2 text-[14px] font-extrabold tracking-wider text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-75 sm:text-[15px]"
                 >
                   <span
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-x-6 top-0.5 h-[36%] rounded-full bg-gradient-to-b from-white/30 to-transparent"
                   />
-                  <UserPlus className="relative h-5 w-5 shrink-0" aria-hidden="true" />
+                  <UserPlus className="relative h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true" />
                   <span className="relative">CRIAR CONTA</span>
                 </button>
               </div>
-            </div>
-
-            {/* 4D. ACESSO RÁPIDO PARA TESTES (Escolha qualquer Digimon jogável + Painel GM ativo) */}
-            <div className="space-y-2 rounded-xl border border-amber-400/40 bg-[#05122c]/90 p-2.5 shadow-[0_0_18px_rgba(251,191,36,0.16)]">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden="true" />
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
-                    Teste Rápido · Escolha o Digimon
-                  </span>
-                </div>
-                <span className="rounded border border-amber-300/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
-                  {selectedTestForm.stage} · Nv.{selectedTestForm.unlockLevel}
-                </span>
-              </div>
-
-              {/* 12 Playable Digimons across all 3 evolution chains */}
-              <div className="space-y-1.5">
-                {STARTER_LINE_ORDER.map((line) => {
-                  const forms = EVOLUTION_FORM_CHAINS[line.id];
-                  return (
-                    <div key={line.id} className="space-y-1">
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className={`h-1.5 w-1.5 rounded-full ${line.dotClass}`} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
-                          Linha {line.label}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {forms.map((form) => {
-                          const isSelected = form.id === selectedTestFormId;
-                          return (
-                            <button
-                              key={form.id}
-                              type="button"
-                              onClick={() => handleSelectTestForm(form.id)}
-                              title={`${form.name} (${form.stage} · Nv.${form.unlockLevel})`}
-                              style={
-                                isSelected
-                                  ? {
-                                      borderColor: form.theme.accentHex,
-                                      boxShadow: `0 0 12px ${form.theme.glowRgba}`,
-                                    }
-                                  : undefined
-                              }
-                              className={`group flex flex-col items-center rounded-lg border px-1 py-1.5 text-center transition ${
-                                isSelected
-                                  ? 'bg-[#0b2352] text-white'
-                                  : 'border-sky-400/20 bg-[#041028]/80 text-slate-300 hover:border-sky-300/55 hover:bg-[#081b40]'
-                              }`}
-                            >
-                              <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-slate-950/60">
-                                <img
-                                  src={form.portraitUrl}
-                                  alt={form.name}
-                                  className="h-8 w-8 object-contain transition-transform duration-150 group-hover:scale-105"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <span className="mt-1 w-full truncate text-[9px] font-extrabold tracking-tight">
-                                {form.name}
-                              </span>
-                              <span
-                                className={`text-[9px] font-bold ${
-                                  isSelected ? 'text-amber-200' : 'text-cyan-300/80'
-                                }`}
-                              >
-                                Nv.{form.unlockLevel}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Selected Digimon skills summary + compact Tamer switcher */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-400/20 bg-[#030b1d]/85 px-2.5 py-1.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[10px] font-bold text-cyan-200">
-                    F1: {selectedTestForm.special1Name} · F2: {selectedTestForm.special2Name}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px] font-bold uppercase text-slate-400">
-                    Tamer:
-                  </span>
-                  {TAMER_CHARACTERS.map((tamer) => {
-                    const active = tamer.id === selectedTestTamerId;
-                    const label =
-                      tamer.id.charAt(0).toUpperCase() + tamer.id.slice(1);
-                    return (
-                      <button
-                        key={tamer.id}
-                        type="button"
-                        onClick={() => handleSelectTestTamer(tamer.id)}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold transition ${
-                          active
-                            ? 'border border-cyan-300 bg-cyan-500/25 text-white'
-                            : 'border border-slate-700 bg-slate-900/70 text-slate-300 hover:border-cyan-400/50'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={isSubmitting || isGoogleLoading}
-                onClick={handleQuickTestEnter}
-                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-amber-300/75 bg-gradient-to-r from-[#2c1902]/95 via-[#4b2a04]/95 to-[#2c1902]/95 px-3 py-2 text-xs font-extrabold tracking-wide text-amber-100 shadow-[0_0_16px_rgba(251,191,36,0.3)] transition hover:border-amber-200 hover:brightness-110 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-75 sm:text-[13px]"
-              >
-                <Zap className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
-                <span className="truncate">
-                  ENTRAR DIRETO · {selectedTestForm.name} (NV.{selectedTestForm.unlockLevel})
-                </span>
-              </button>
             </div>
           </form>
         </div>

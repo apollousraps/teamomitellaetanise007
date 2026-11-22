@@ -364,6 +364,62 @@ export async function saveStarterDigimonForAccount(params: {
   };
 }
 
+export function overrideCharacterForGm(params: {
+  accountUsername: string;
+  characterId: TamerId;
+  tamerName?: string;
+}): SavedCharacterSelection {
+  const cleanAccount = params.accountUsername.trim() || 'TamerTeste';
+  const existing = getSavedCharacterForAccount(cleanAccount);
+  const sprites = getTamerSprites(params.characterId);
+  const record: SavedCharacterSelection = {
+    accountUsername: cleanAccount,
+    characterId: params.characterId,
+    tamerName: (params.tamerName ?? existing?.tamerName ?? cleanAccount).trim() || cleanAccount,
+    spritesheetMeta: {
+      frameWidth: sprites.frameWidth,
+      frameHeight: sprites.frameHeight,
+      columns: sprites.columns,
+      rows: sprites.rows,
+      directions: sprites.directions,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const key = `${CHARACTER_SELECTION_PREFIX}${cleanAccount.toLowerCase()}`;
+    window.localStorage.setItem(key, JSON.stringify(record));
+  } catch {
+    // Ignore storage unavailability cleanly
+  }
+
+  return record;
+}
+
+export function overrideStarterDigimonForGm(params: {
+  accountUsername: string;
+  digimonId: StarterDigimonId;
+}): SavedStarterDigimon {
+  const cleanAccount = params.accountUsername.trim() || 'TamerTeste';
+  const profile = getStarterDigimonById(params.digimonId);
+  const record: SavedStarterDigimon = {
+    accountUsername: cleanAccount,
+    digimonId: profile.id,
+    digimonName: profile.name,
+    element: profile.element,
+    chosenAt: new Date().toISOString(),
+  };
+
+  try {
+    const key = `${STARTER_SELECTION_PREFIX}${cleanAccount.toLowerCase()}`;
+    window.localStorage.setItem(key, JSON.stringify(record));
+  } catch {
+    // Ignore storage unavailability cleanly
+  }
+
+  return record;
+}
+
 export function prepareQuickTestSession(params: {
   formId: DigimonFormId;
   tamerId?: TamerId;

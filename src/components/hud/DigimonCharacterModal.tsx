@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Lock, Sparkles, X } from 'lucide-react';
+import { getHatchQualityProfile } from '../../data/itemsCatalog';
 import {
   computeDerivedDigimonAttributes,
   computeTamerAttributes,
@@ -386,6 +387,13 @@ export function DigimonCharacterModal({
     [tamerAttrs, digimonStats, defeatedTotal, digimon.id]
   );
 
+  const qualityProfile = useMemo(
+    () => getHatchQualityProfile(digimonStats.hatchGrade),
+    [digimonStats.hatchGrade]
+  );
+  const effectiveSizePct =
+    digimonStats.hatchSizePct ?? qualityProfile.defaultSizePct;
+
   const evoChain = DIGIMON_EVOLUTION_CHAINS[digimon.starterId];
   const { readyToEvolve } = useMemo(
     () => getNextEvolutionInfo(digimon.starterId, digimonStats),
@@ -462,6 +470,17 @@ export function DigimonCharacterModal({
                     <div className="mt-0.5 flex flex-wrap items-center gap-1 sm:gap-1.5">
                       <span className="text-[11px] font-black tabular-nums text-[#ffd43b] drop-shadow sm:text-base lg:text-lg [@media(max-height:500px)]:text-[12.5px]">
                         Lv.{digimonStats.level}
+                      </span>
+                      <span
+                        title={`${qualityProfile.description} Tamanho: ${effectiveSizePct}%`}
+                        className="rounded border px-1.5 py-[1px] text-[8.5px] font-black tabular-nums sm:text-[10px]"
+                        style={{
+                          borderColor: qualityProfile.badgeColor,
+                          color: qualityProfile.badgeColor,
+                          backgroundColor: 'rgba(4, 18, 56, 0.9)',
+                        }}
+                      >
+                        {qualityProfile.label} · {qualityProfile.qualityName} ({effectiveSizePct}%)
                       </span>
                       <div className="flex items-center gap-0.5" aria-label={`Classificação ${derived.starRank} de 5 estrelas`}>
                         {[1, 2, 3, 4, 5].map((starIdx) => (

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Lock,
   LogOut,
   Settings,
@@ -9,11 +11,16 @@ import {
   X,
 } from 'lucide-react';
 import {
+  DMO_HATCH_QUALITY_PROFILES,
+  MIN_HATCHABLE_LEVEL,
+} from '../../data/itemsCatalog';
+import {
   getDigiEggDisplayInfo,
   getInventoryDigiEggs,
   getInventoryReinforceMaterials,
   INCUBATOR_TOTAL_TRAY_SLOTS,
   INCUBATOR_VISIBLE_EGG_SLOTS,
+  validateDataInjection,
   validateDigiEggHatch,
   validateEggReinforce,
 } from '../../services/incubatorService';
@@ -25,10 +32,19 @@ import type { AccountHudPersistence, InventoryItem } from '../../types/hud';
 
 interface DigiEggIncubatorModalProps {
   hudAccount: AccountHudPersistence;
+  onExecuteDataInject: (eggItemId: string) => {
+    ok: boolean;
+    outcome: 'success' | 'fail' | 'broken' | 'error';
+    message: string;
+    newLevel?: number;
+    brokeEgg?: boolean;
+    updatedEggId?: string;
+  };
   onExecuteHatch: (eggItemId: string) => {
     ok: boolean;
     message: string;
     hatchedSpecies?: string;
+    hatchedGrade?: 3 | 4 | 5;
   };
   onExecuteReinforce: (
     eggItemId: string,
@@ -37,6 +53,7 @@ interface DigiEggIncubatorModalProps {
     ok: boolean;
     message: string;
     newReinforceLevel?: number;
+    updatedEggId?: string;
   };
   onPlayTone: (tone: 'click' | 'confirm' | 'error') => void;
   onClose: () => void;
@@ -136,6 +153,7 @@ function DigiEggArtwork({
 
 export function DigiEggIncubatorModal({
   hudAccount,
+  onExecuteDataInject,
   onExecuteHatch,
   onExecuteReinforce,
   onPlayTone,
@@ -147,11 +165,12 @@ export function DigiEggIncubatorModal({
 
   const [webglFallback, setWebglFallback] = useState(false);
   const [selectedEggId, setSelectedEggId] = useState<string | null>(null);
+  const [trayPage, setTrayPage] = useState(0);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [showReinforceArea, setShowReinforceArea] = useState(false);
-  const [processingKind, setProcessingKind] = useState<'hatch' | 'reinforce' | null>(
-    null
-  );
+  const [processingKind, setProcessingKind] = useState<
+    'inject' | 'hatch' | 'reinforce' | null
+  >(null);
   const [feedback, setFeedback] = useState<{
     tone: 'success' | 'error' | 'info';
     text: string;
@@ -218,6 +237,56 @@ export function DigiEggIncubatorModal({
     onPlayTone('click');
     setSelectedEggId(egg.id);
     setFeedback(null);
+  }
+
+  function handleClickInjectData() {
+    if (processingKind) return;
+
+    const validation = validateDataInjection(hudAccount, selectedEggItem?.id ?? null);
+    if (!validation.ok || !selectedEggItem || !validation.info?.nextInjection) {
+      onPlayTone('error');
+      setShowReinforceArea(false);
+      setFeedback({
+        tone: 'error',
+        text:
+          validation.error ??
+          'Não foi possível inserir DATA no DigiEgg selecionado.',
+      });
+      return;
+    }
+
+    const nextStep = validation.info.nextInjection;
+    setShowReinforceArea(false);
+    setProcessingKind('inject');
+    setChamberVisualMode('reinforcing');
+    setFeedback({
+      tone: 'info',
+      text: `Inserindo ${validation.info.requiredData?.name ?? 'DATA'} (${Math.round(
+        nextStep.successChance * 100
+      )}% chance) para tentar ${nextStep.toLevel}/5...`,
+    });
+    onPlayTone('click');
+
+    const eggIdSnapshot = selectedEggItem.id;
+    actionTimerRef.current = window.setTimeout(() => {
+      const result = onExecuteDataInject(eggIdSnapshot);
+      setProcessingKind(null);
+      if (result.updatedEggId) {
+        setSelectedEggId(result.updatedEggId);
+      } else if (result.brokeEgg) {
+        setSelectedEggId(null);
+      }
+      if (result.ok && result.outcome === 'success') {
+        setChamberVisualMode('success');
+        onPlayTone('confirm');
+        setFeedback({ tone: 'success', text: result.message });
+        window.setTimeout(() => setChamberVisualMode('idle'), 1200);
+      } else {
+        setChamberVisualMode('idle');
+        onPlayTone('error');
+        setFeedback({ tone: 'error', text: result.message });
+      }
+    }, 680);
   }
 
   function handleClickChocar() {
@@ -299,6 +368,9 @@ export function DigiEggIncubatorModal({
     actionTimerRef.current = window.setTimeout(() => {
       const result = onExecuteReinforce(eggIdSnapshot, matIdSnapshot);
       setProcessingKind(null);
+      if (result.updatedEggId) {
+        setSelectedEggId(result.updatedEggId);
+      }
       if (result.ok) {
         setChamberVisualMode('success');
         onPlayTone('confirm');
@@ -318,18 +390,32 @@ export function DigiEggIncubatorModal({
     onClose();
   }
 
+  const totalTrayPages = Math.max(
+    1,
+    Math.ceil(realDigiEggs.length / INCUBATOR_VISIBLE_EGG_SLOTS)
+  );
+  const safeTrayPage = Math.min(trayPage, totalTrayPages - 1);
+
+  const canHatchSelectedEgg = Boolean(
+    selectedEggInfo && selectedEggInfo.canHatch
+  );
+  const canInjectSelectedEgg = Boolean(
+    selectedEggInfo && selectedEggInfo.canInjectData
+  );
+
   const traySlots = useMemo(() => {
+    const startIdx = safeTrayPage * INCUBATOR_VISIBLE_EGG_SLOTS;
     return Array.from({ length: INCUBATOR_TOTAL_TRAY_SLOTS }, (_, index) => {
       if (index >= INCUBATOR_VISIBLE_EGG_SLOTS) {
         return { kind: 'locked' as const, index };
       }
-      const realEgg = realDigiEggs[index] ?? null;
+      const realEgg = realDigiEggs[startIdx + index] ?? null;
       if (realEgg) {
         return { kind: 'egg' as const, index, item: realEgg };
       }
       return { kind: 'empty' as const, index };
     });
-  }, [realDigiEggs]);
+  }, [realDigiEggs, safeTrayPage]);
 
   return (
     <div
@@ -458,13 +544,15 @@ export function DigiEggIncubatorModal({
                             </div>
                           )}
 
-                          {/* Energy surge ring overlay during Hatching / Reinforce */}
+                          {/* Energy surge ring overlay during Injecting / Hatching / Reinforce */}
                           {processingKind && (
                             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end bg-cyan-400/10 pb-2">
                               <span className="animate-pulse rounded-full border border-amber-300/90 bg-[#051844]/90 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-200 shadow-[0_0_16px_rgba(250,204,21,0.55)]">
                                 {processingKind === 'hatch'
                                   ? 'Chocando DigiEgg...'
-                                  : 'Reforçando DigiEgg...'}
+                                  : processingKind === 'inject'
+                                    ? 'Inserindo DATA...'
+                                    : 'Reforçando DigiEgg...'}
                               </span>
                             </div>
                           )}
@@ -566,48 +654,155 @@ export function DigiEggIncubatorModal({
                             </p>
                           </div>
                         ) : (
-                          <div className="my-auto flex flex-col gap-2 py-1.5 text-[11px]">
+                          <div className="my-auto flex flex-col gap-1.5 py-1 text-[11px]">
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-cyan-300/60 bg-[#051742] p-1 shadow-[0_0_14px_rgba(56,232,255,0.28)]">
-                                <DigiEggArtwork
-                                  accentColor={selectedEggInfo.accentColor}
-                                  sizeClass="h-10 w-10"
-                                />
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-cyan-300/60 bg-[#051742] p-1 shadow-[0_0_14px_rgba(56,232,255,0.28)]">
+                                {selectedEggInfo.iconUrl ? (
+                                  <img
+                                    src={selectedEggInfo.iconUrl}
+                                    alt={selectedEggInfo.item.name}
+                                    className="h-10 w-10 object-contain drop-shadow-[0_2px_8px_rgba(56,232,255,0.5)]"
+                                  />
+                                ) : (
+                                  <DigiEggArtwork
+                                    accentColor={selectedEggInfo.accentColor}
+                                    sizeClass="h-9 w-9"
+                                  />
+                                )}
                               </div>
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-black text-white sm:text-[13px]">
                                   {selectedEggInfo.item.name}
                                 </p>
-                                <p className="text-[10.5px] font-bold text-amber-300">
-                                  Raridade: {selectedEggInfo.rarity}
-                                </p>
-                                <p className="text-[10px] font-semibold text-cyan-200">
-                                  Reforço: Nv. {selectedEggInfo.hatchLevel}/
-                                  {selectedEggInfo.maxHatchLevel}
-                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-bold text-amber-300">
+                                    {selectedEggInfo.rarity}
+                                  </span>
+                                  <span
+                                    className={`rounded border px-1.5 py-[1px] text-[9px] font-black tabular-nums ${
+                                      selectedEggInfo.hatchLevel >= 5
+                                        ? 'border-amber-300/80 bg-amber-950/75 text-amber-200'
+                                        : selectedEggInfo.hatchLevel === 4
+                                          ? 'border-purple-300/80 bg-purple-950/75 text-purple-200'
+                                          : selectedEggInfo.hatchLevel === 3
+                                            ? 'border-cyan-300/80 bg-cyan-950/75 text-cyan-200'
+                                            : 'border-slate-500/70 bg-slate-900/80 text-slate-300'
+                                    }`}
+                                  >
+                                    {selectedEggInfo.hatchLevel}/
+                                    {selectedEggInfo.maxHatchLevel}
+                                    {selectedEggInfo.currentQualityProfile
+                                      ? ` · ${selectedEggInfo.currentQualityProfile.qualityName}`
+                                      : ' · Preparo'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
-                            <p className="line-clamp-2 text-[10.5px] leading-snug text-sky-100/85">
-                              {selectedEggInfo.item.description}
-                            </p>
+                            {/* 5-Stage DMO Gauge (1/5 & 2/5 non-hatchable; 3/5, 4/5, 5/5 hatchable tiers) */}
+                            <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2 py-1.5">
+                              <div className="flex items-center justify-between gap-1 text-[9px] font-bold">
+                                <span className="uppercase text-cyan-300">
+                                  Escala DMO (Chocagem ≥ 3/5)
+                                </span>
+                                <span
+                                  className={
+                                    selectedEggInfo.canHatch
+                                      ? 'text-emerald-300'
+                                      : 'text-amber-200/85'
+                                  }
+                                >
+                                  {selectedEggInfo.currentQualityProfile
+                                    ? `${selectedEggInfo.currentQualityProfile.statMultiplier.toFixed(2)}× Atr.`
+                                    : '1/5 e 2/5 não chocam'}
+                                </span>
+                              </div>
+                              <div className="mt-1 grid grid-cols-5 gap-1">
+                                {[1, 2, 3, 4, 5].map((lv) => {
+                                  const filled = selectedEggInfo.hatchLevel >= lv;
+                                  const isHatchTier = lv >= MIN_HATCHABLE_LEVEL;
+                                  const tierLabel =
+                                    lv === 3
+                                      ? '3/5'
+                                      : lv === 4
+                                        ? '4/5'
+                                        : lv === 5
+                                          ? '5/5'
+                                          : `${lv}/5`;
+                                  const tierTitle =
+                                    lv < 3
+                                      ? `${lv}/5: Apenas preparo (não chocável)`
+                                      : `${lv}/5 (${
+                                          DMO_HATCH_QUALITY_PROFILES[lv as 3 | 4 | 5]
+                                            .qualityName
+                                        }): ${DMO_HATCH_QUALITY_PROFILES[
+                                          lv as 3 | 4 | 5
+                                        ].statMultiplier.toFixed(2)}× atributos`;
+                                  return (
+                                    <div
+                                      key={lv}
+                                      title={tierTitle}
+                                      className={`flex flex-col items-center justify-center rounded border py-0.5 text-[8.5px] font-black tabular-nums transition ${
+                                        filled
+                                          ? lv === 5
+                                            ? 'border-amber-300 bg-amber-500/35 text-amber-100 shadow-[0_0_8px_rgba(251,191,36,0.45)]'
+                                            : lv === 4
+                                              ? 'border-purple-300 bg-purple-500/35 text-purple-100 shadow-[0_0_8px_rgba(192,132,252,0.4)]'
+                                              : lv === 3
+                                                ? 'border-emerald-300 bg-emerald-500/30 text-emerald-100 shadow-[0_0_8px_rgba(52,211,153,0.35)]'
+                                                : 'border-cyan-400/70 bg-cyan-500/25 text-cyan-100'
+                                          : isHatchTier
+                                            ? 'border-cyan-500/35 bg-[#061a4a]/80 text-cyan-200/60'
+                                            : 'border-slate-600/50 bg-[#030d26]/90 text-slate-500'
+                                      }`}
+                                    >
+                                      {tierLabel}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
 
-                            {selectedEggInfo.requiredMaterials.length > 0 && (
-                              <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2 py-1">
-                                <p className="text-[9px] font-bold uppercase text-cyan-300">
-                                  Requisitos para Chocar
-                                </p>
-                                <div className="mt-0.5 space-y-0.5">
+                            {selectedEggInfo.nextInjection ? (
+                              <div className="rounded-lg border border-cyan-400/25 bg-[#041234] px-2 py-1.5">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className="text-[9px] font-bold uppercase text-cyan-300">
+                                    Inserção → {selectedEggInfo.nextInjection.toLevel}/5
+                                  </p>
+                                  <span className="text-[9px] font-black tabular-nums text-amber-200">
+                                    Acerto:{' '}
+                                    {Math.round(
+                                      selectedEggInfo.nextInjection.successChance * 100
+                                    )}
+                                    %
+                                    {selectedEggInfo.nextInjection.breakChanceOnFail > 0
+                                      ? ` · Quebra: ${Math.round(
+                                          selectedEggInfo.nextInjection.breakChanceOnFail *
+                                            100
+                                        )}%`
+                                      : ' · Seguro'}
+                                  </span>
+                                </div>
+                                <div className="mt-1 space-y-1">
                                   {selectedEggInfo.requiredMaterials.map((req) => (
                                     <div
                                       key={req.itemKey}
-                                      className="flex items-center justify-between text-[10px]"
+                                      className="flex items-center justify-between gap-1.5 rounded border border-cyan-400/20 bg-[#061a4a] px-1.5 py-0.5 text-[10px]"
                                     >
-                                      <span className="truncate text-slate-200">
-                                        {req.name}
-                                      </span>
+                                      <div className="flex min-w-0 items-center gap-1.5">
+                                        {req.iconUrl && (
+                                          <img
+                                            src={req.iconUrl}
+                                            alt={req.name}
+                                            className="h-4.5 w-4.5 shrink-0 object-contain"
+                                          />
+                                        )}
+                                        <span className="truncate font-bold text-slate-100">
+                                          {req.name}
+                                        </span>
+                                      </div>
                                       <span
-                                        className={`font-black tabular-nums ${
+                                        className={`shrink-0 font-black tabular-nums ${
                                           req.owned >= req.quantity
                                             ? 'text-emerald-300'
                                             : 'text-rose-300'
@@ -618,6 +813,15 @@ export function DigiEggIncubatorModal({
                                     </div>
                                   ))}
                                 </div>
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-amber-300/60 bg-amber-950/45 px-2.5 py-1.5 text-center">
+                                <p className="text-[10px] font-black uppercase text-amber-200">
+                                  5/5 · Muito Forte (Máximo DMO!)
+                                </p>
+                                <p className="text-[9px] text-amber-100/85">
+                                  Pronto para chocar com +35% em atributos!
+                                </p>
                               </div>
                             )}
                           </div>
@@ -648,23 +852,73 @@ export function DigiEggIncubatorModal({
                       </div>
                     )}
 
-                    {/* EXACT 3 ACTION BUTTONS: CHOCAR DIGIEGG | REFORÇO | SAIR */}
+                    {/* ACTION BUTTONS: INSERIR DATA | CHOCAR DIGIEGG (3/5+) | REFORÇO | SAIR */}
                     <div className="flex flex-col gap-1.5 sm:gap-2">
-                      <button
-                        type="button"
-                        disabled={Boolean(processingKind)}
-                        onClick={handleClickChocar}
-                        className="clip-cyber-tab flex min-h-[38px] w-full items-center justify-center bg-gradient-to-b from-[#fff59d] via-[#fbbf24] to-[#b45309] p-[1.5px] shadow-[0_0_20px_rgba(245,158,11,0.45)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[42px]"
-                      >
-                        <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-2 bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] px-4 py-1.5 text-sm font-black tracking-wide text-white drop-shadow sm:text-base">
-                          <CrackedDigiEggIcon variant="white" className="h-5 w-5" />
-                          <span>
-                            {processingKind === 'hatch'
-                              ? 'Chocando DigiEgg...'
-                              : 'Chocar DigiEgg'}
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(processingKind) || !canInjectSelectedEgg
+                          }
+                          onClick={handleClickInjectData}
+                          title={
+                            !selectedEggInfo
+                              ? 'Selecione um DigiEgg do inventário'
+                              : !selectedEggInfo.nextInjection
+                                ? 'DigiEgg já está no nível máximo 5/5'
+                                : !selectedEggInfo.hasAllMaterials
+                                  ? 'DATA insuficiente para inserir neste estágio'
+                                  : `Inserir DATA (${Math.round(
+                                      selectedEggInfo.nextInjection.successChance * 100
+                                    )}% chance)`
+                          }
+                          className="clip-cyber-tab flex min-h-[36px] w-full items-center justify-center bg-gradient-to-b from-[#99f6ff] via-[#0ea5e9] to-[#0369a1] p-[1.5px] shadow-[0_0_16px_rgba(14,165,233,0.4)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-[40px]"
+                        >
+                          <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-1.5 bg-gradient-to-b from-[#0284c7] via-[#0369a1] to-[#0c4a6e] px-3 py-1 text-xs font-black tracking-wide text-white drop-shadow sm:text-[13px]">
+                            {selectedEggInfo?.requiredData?.iconUrl && (
+                              <img
+                                src={selectedEggInfo.requiredData.iconUrl}
+                                alt=""
+                                className="h-4.5 w-4.5 object-contain"
+                              />
+                            )}
+                            <span>
+                              {processingKind === 'inject'
+                                ? 'Inserindo DATA...'
+                                : selectedEggInfo?.nextInjection
+                                  ? `Inserir DATA (${selectedEggInfo.nextInjection.toLevel}/5 · ${Math.round(
+                                      selectedEggInfo.nextInjection.successChance * 100
+                                    )}%)`
+                                  : 'DATA Máxima (5/5)'}
+                            </span>
                           </span>
-                        </span>
-                      </button>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={Boolean(processingKind) || !canHatchSelectedEgg}
+                          onClick={handleClickChocar}
+                          title={
+                            !selectedEggInfo
+                              ? 'Selecione um DigiEgg do inventário'
+                              : !selectedEggInfo.canHatch
+                                ? `Bloqueado em ${selectedEggInfo.hatchLevel}/5: atinja pelo menos 3/5 (Aceitável)`
+                                : `Chocar ${selectedEggInfo.item.name} em ${selectedEggInfo.currentQualityProfile?.label}`
+                          }
+                          className="clip-cyber-tab flex min-h-[36px] w-full items-center justify-center bg-gradient-to-b from-[#fff59d] via-[#fbbf24] to-[#b45309] p-[1.5px] shadow-[0_0_20px_rgba(245,158,11,0.45)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-[40px]"
+                        >
+                          <span className="clip-cyber-tab flex h-full w-full items-center justify-center gap-1.5 bg-gradient-to-b from-[#f59e0b] via-[#d97706] to-[#92400e] px-3 py-1 text-xs font-black tracking-wide text-white drop-shadow sm:text-[13px]">
+                            <CrackedDigiEggIcon variant="white" className="h-4.5 w-4.5" />
+                            <span>
+                              {processingKind === 'hatch'
+                                ? 'Chocando...'
+                                : selectedEggInfo?.currentQualityProfile
+                                  ? `Chocar (${selectedEggInfo.currentQualityProfile.label} · ${selectedEggInfo.currentQualityProfile.qualityName})`
+                                  : 'Chocar DigiEgg (mín. 3/5)'}
+                            </span>
+                          </span>
+                        </button>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                         <button
@@ -714,9 +968,38 @@ export function DigiEggIncubatorModal({
                   Meus DigiEggs
                 </span>
               </div>
-              <span className="text-[10px] font-bold tabular-nums text-cyan-200">
-                Inventário: {realDigiEggs.length} tipo(s)
-              </span>
+              <div className="flex items-center gap-2">
+                {totalTrayPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTrayPage((p) => (p - 1 + totalTrayPages) % totalTrayPages)
+                      }
+                      aria-label="Página anterior de DigiEggs"
+                      className="flex h-5 w-5 items-center justify-center rounded border border-cyan-300/60 bg-[#051e57] text-cyan-100 hover:bg-cyan-700"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="text-[9.5px] font-black tabular-nums text-cyan-200">
+                      {safeTrayPage + 1}/{totalTrayPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTrayPage((p) => (p + 1) % totalTrayPages)
+                      }
+                      aria-label="Próxima página de DigiEggs"
+                      className="flex h-5 w-5 items-center justify-center rounded border border-cyan-300/60 bg-[#051e57] text-cyan-100 hover:bg-cyan-700"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                <span className="text-[10px] font-bold tabular-nums text-cyan-200">
+                  Inventário: {realDigiEggs.length} tipo(s)
+                </span>
+              </div>
             </div>
 
             {/* 5 Pedestal Slots (Real DigiEggs from Inventory + Empty/Locked Slots — zero fake eggs) */}
@@ -767,14 +1050,37 @@ export function DigiEggIncubatorModal({
                         : 'border-[#38bdf8]/65 bg-gradient-to-b from-[#072668] to-[#031033] hover:border-cyan-200'
                     }`}
                   >
-                    <span className="self-end rounded bg-[#02091c]/85 px-1 text-[8px] font-black tabular-nums text-cyan-200">
-                      x{egg.quantity}
-                    </span>
-                    <DigiEggArtwork
-                      accentColor={info.accentColor}
-                      sizeClass="h-9 w-9 sm:h-11 sm:w-11"
-                    />
-                    <div className="h-2 w-11 rounded-full border border-cyan-300/75 bg-cyan-400/35 shadow-[0_0_10px_rgba(56,232,255,0.55)] sm:w-14" />
+                    <div className="flex w-full items-center justify-between gap-1">
+                      <span
+                        className={`rounded px-1 text-[8px] font-black tabular-nums ${
+                          info.hatchLevel >= 5
+                            ? 'bg-amber-950/90 text-amber-200'
+                            : info.hatchLevel === 4
+                              ? 'bg-purple-950/90 text-purple-200'
+                              : info.hatchLevel === 3
+                                ? 'bg-emerald-950/90 text-emerald-200'
+                                : 'bg-[#02091c]/85 text-slate-300'
+                        }`}
+                      >
+                        {info.hatchLevel}/5
+                      </span>
+                      <span className="rounded bg-[#02091c]/85 px-1 text-[8px] font-black tabular-nums text-cyan-200">
+                        x{egg.quantity}
+                      </span>
+                    </div>
+                    {info.iconUrl ? (
+                      <img
+                        src={info.iconUrl}
+                        alt={egg.name}
+                        className="h-10 w-10 object-contain drop-shadow-[0_2px_8px_rgba(56,232,255,0.45)] sm:h-12 sm:w-12"
+                      />
+                    ) : (
+                      <DigiEggArtwork
+                        accentColor={info.accentColor}
+                        sizeClass="h-9 w-9 sm:h-11 sm:w-11"
+                      />
+                    )}
+                    <div className="h-1.5 w-11 rounded-full border border-cyan-300/75 bg-cyan-400/35 shadow-[0_0_10px_rgba(56,232,255,0.55)] sm:w-14" />
                     <span className="w-full truncate text-center text-[8.5px] font-extrabold text-white sm:text-[9.5px]">
                       {egg.name}
                     </span>

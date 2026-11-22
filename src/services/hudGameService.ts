@@ -13,14 +13,16 @@ import type {
   ComputedTamerAttributes,
   DigimonRuntimeStats,
   EquipmentSlotId,
+  HatchQualityGrade,
   InventoryItem,
   TamerRuntimeStats,
 } from '../types/hud';
+import { enrichInventoryItem, getHatchQualityProfile } from '../data/itemsCatalog';
 import { scheduleHudStateSync } from './cloudSaveService';
 
 const HUD_PERSISTENCE_PREFIX = 'dw_digital_war_hud_v1_';
 
-export const INVENTORY_MAX_SLOTS = 24;
+export const INVENTORY_MAX_SLOTS = 48;
 export const SKILL_F1_DS_COST = 12;
 export const SKILL_F2_DS_COST = 20;
 export const SKILL_F1_COOLDOWN_SEC = 4.5;
@@ -84,20 +86,24 @@ export function calcTamerMaxDs(level: number): number {
 
 export function calcDigimonMaxHp(
   level: number,
-  formId: DigimonFormId = 'agumon'
+  formId: DigimonFormId = 'agumon',
+  hatchGrade: HatchQualityGrade = 3
 ): number {
   const s = getDigimonFormProfile(formId).baseStats;
   const lvOffset = Math.max(0, level - 1);
-  return Math.round(s.hpBase + lvOffset * s.hpPerLv);
+  const mult = getHatchQualityProfile(hatchGrade).statMultiplier;
+  return Math.round((s.hpBase + lvOffset * s.hpPerLv) * mult);
 }
 
 export function calcDigimonMaxDs(
   level: number,
-  formId: DigimonFormId = 'agumon'
+  formId: DigimonFormId = 'agumon',
+  hatchGrade: HatchQualityGrade = 3
 ): number {
   const s = getDigimonFormProfile(formId).baseStats;
   const lvOffset = Math.max(0, level - 1);
-  return Math.round(s.dsBase + lvOffset * s.dsPerLv);
+  const mult = getHatchQualityProfile(hatchGrade).statMultiplier;
+  return Math.round((s.dsBase + lvOffset * s.dsPerLv) * mult);
 }
 
 /**
@@ -196,6 +202,8 @@ export function computeDerivedDigimonAttributes(
   );
   const s = effectiveForm.baseStats;
   const digiLvOffset = Math.max(0, digimon.level - 1);
+  const qualityProfile = getHatchQualityProfile(digimon.hatchGrade);
+  const qualityMult = qualityProfile.statMultiplier;
 
   // Modest Tamer synergy (25% of Tamer AT/DE + Tamer gear bonuses above base)
   const attackBonusFromTamer = Math.round(tamerAttrs.attack * 0.25);
@@ -204,8 +212,12 @@ export function computeDerivedDigimonAttributes(
   const tamerGearEvaBonus = Math.max(0, tamerAttrs.evasion - 2.0);
   const tamerGearHitBonus = Math.max(0, tamerAttrs.accuracy - 65);
 
-  const attack = Math.round(s.atBase + digiLvOffset * s.atPerLv + attackBonusFromTamer);
-  const defense = Math.round(s.deBase + digiLvOffset * s.dePerLv + defenseBonusFromTamer);
+  const attack = Math.round(
+    (s.atBase + digiLvOffset * s.atPerLv) * qualityMult + attackBonusFromTamer
+  );
+  const defense = Math.round(
+    (s.deBase + digiLvOffset * s.dePerLv) * qualityMult + defenseBonusFromTamer
+  );
   const speed = Math.round(
     (168 + digiLvOffset * 1.2 + Math.max(0, tamerAttrs.speed - 165) * 0.4) *
       effectiveForm.spdMult
@@ -231,8 +243,16 @@ export function computeDerivedDigimonAttributes(
   const totalSpecial2Damage = Math.max(38, Math.round(attack * s.skill2Ratio));
 
   // Grounded Combat Power (Rookie Lv.1 ~310 · Champion Lv.15 ~1,120 · Ultimate Lv.30 ~2,480 · Mega Lv.50 ~5,250)
-  const expectedMaxHp = calcDigimonMaxHp(digimon.level, effectiveForm.id);
-  const expectedMaxDs = calcDigimonMaxDs(digimon.level, effectiveForm.id);
+  const expectedMaxHp = calcDigimonMaxHp(
+    digimon.level,
+    effectiveForm.id,
+    qualityProfile.grade
+  );
+  const expectedMaxDs = calcDigimonMaxDs(
+    digimon.level,
+    effectiveForm.id,
+    qualityProfile.grade
+  );
   const combatPower = Math.round(
     expectedMaxHp * 0.45 +
       expectedMaxDs * 0.25 +
@@ -331,8 +351,9 @@ export function evolveDigimonAccountState(
     return { next: state, evolvedForm: targetForm };
   }
 
-  const nextMaxHp = calcDigimonMaxHp(state.digimon.level, targetForm.id);
-  const nextMaxDs = calcDigimonMaxDs(state.digimon.level, targetForm.id);
+  const qualityGrade = getHatchQualityProfile(state.digimon.hatchGrade).grade;
+  const nextMaxHp = calcDigimonMaxHp(state.digimon.level, targetForm.id, qualityGrade);
+  const nextMaxDs = calcDigimonMaxDs(state.digimon.level, targetForm.id, qualityGrade);
   const unlockedIds = chain
     .filter((f) => state.digimon.level >= f.unlockLevel)
     .map((f) => f.id);
@@ -361,6 +382,7 @@ export function createDefaultAccountHudState(
 ): AccountHudPersistence {
   const tamerLevel = 1;
   const digimonLevel = 1;
+  const starterGrade: HatchQualityGrade = 3;
   return {
     accountUsername: accountUsername.trim() || 'tamer_local',
     tamer: {
@@ -376,10 +398,12 @@ export function createDefaultAccountHudState(
       level: digimonLevel,
       exp: 0,
       expToNext: calcDigimonExpToNext(digimonLevel),
-      hp: calcDigimonMaxHp(digimonLevel),
-      maxHp: calcDigimonMaxHp(digimonLevel),
-      ds: calcDigimonMaxDs(digimonLevel),
-      maxDs: calcDigimonMaxDs(digimonLevel),
+      hp: calcDigimonMaxHp(digimonLevel, 'agumon', starterGrade),
+      maxHp: calcDigimonMaxHp(digimonLevel, 'agumon', starterGrade),
+      ds: calcDigimonMaxDs(digimonLevel, 'agumon', starterGrade),
+      maxDs: calcDigimonMaxDs(digimonLevel, 'agumon', starterGrade),
+      hatchGrade: starterGrade,
+      hatchSizePct: 100,
     },
     bits: 0,
     dCoin: 0,
@@ -421,14 +445,27 @@ export function loadAccountHudState(
       ...fallback.digimon,
       ...(parsed.digimon ?? {}),
     };
+    const qualityProfile = getHatchQualityProfile(mergedDigi.hatchGrade);
+    mergedDigi.hatchGrade = qualityProfile.grade;
+    mergedDigi.hatchSizePct =
+      mergedDigi.hatchSizePct ?? qualityProfile.defaultSizePct;
+
     const activeForm = resolveActiveFormProfile(starterId, mergedDigi.activeFormId);
     // Strict safety check: never allow a higher form if account level is below unlock requirement
     const safeForm =
       mergedDigi.level >= activeForm.unlockLevel
         ? activeForm
         : getEvolutionChainForStarter(starterId)[0];
-    const digiMaxHp = calcDigimonMaxHp(mergedDigi.level, safeForm.id);
-    const digiMaxDs = calcDigimonMaxDs(mergedDigi.level, safeForm.id);
+    const digiMaxHp = calcDigimonMaxHp(
+      mergedDigi.level,
+      safeForm.id,
+      qualityProfile.grade
+    );
+    const digiMaxDs = calcDigimonMaxDs(
+      mergedDigi.level,
+      safeForm.id,
+      qualityProfile.grade
+    );
     mergedDigi.activeFormId = safeForm.id;
     mergedDigi.unlockedFormIds = getUnlockedEvolutionForms(
       starterId,
@@ -447,7 +484,9 @@ export function loadAccountHudState(
       digimon: mergedDigi,
       bits: typeof parsed.bits === 'number' && parsed.bits >= 0 ? parsed.bits : 0,
       dCoin: typeof parsed.dCoin === 'number' && parsed.dCoin >= 0 ? parsed.dCoin : 0,
-      inventory: Array.isArray(parsed.inventory) ? parsed.inventory : [],
+      inventory: Array.isArray(parsed.inventory)
+        ? parsed.inventory.map(enrichInventoryItem)
+        : [],
       equippedItems,
       guildName: typeof parsed.guildName === 'string' ? parsed.guildName : null,
       defeatedEnemiesTotal:
@@ -516,6 +555,7 @@ export function applyExpToDigimon(
   newlyUnlockedForms: DigimonFormProfile[];
 } {
   let { level, exp, expToNext, hp, maxHp, ds, maxDs } = stats;
+  const qualityProfile = getHatchQualityProfile(stats.hatchGrade);
   const activeForm = resolveActiveFormProfile(starterId, stats.activeFormId);
   const prevLevel = level;
   exp += gainedExp;
@@ -525,8 +565,8 @@ export function applyExpToDigimon(
     level += 1;
     leveledUp = true;
     expToNext = calcDigimonExpToNext(level);
-    maxHp = calcDigimonMaxHp(level, activeForm.id);
-    maxDs = calcDigimonMaxDs(level, activeForm.id);
+    maxHp = calcDigimonMaxHp(level, activeForm.id, qualityProfile.grade);
+    maxDs = calcDigimonMaxDs(level, activeForm.id, qualityProfile.grade);
     hp = maxHp;
     ds = maxDs;
   }
@@ -547,6 +587,8 @@ export function applyExpToDigimon(
       maxDs,
       activeFormId: activeForm.id,
       unlockedFormIds: unlockedForms.map((f) => f.id),
+      hatchGrade: qualityProfile.grade,
+      hatchSizePct: stats.hatchSizePct ?? qualityProfile.defaultSizePct,
     },
     leveledUp,
     newlyUnlockedForms,
@@ -564,6 +606,7 @@ export function setDigimonLevelForTesting(
 } {
   const clampedLevel = Math.max(1, Math.min(99, Math.round(targetLevel)));
   const prevLevel = stats.level;
+  const qualityProfile = getHatchQualityProfile(stats.hatchGrade);
   const chain = getEvolutionChainForStarter(starterId);
   const currentForm = resolveActiveFormProfile(starterId, stats.activeFormId);
 
@@ -573,8 +616,8 @@ export function setDigimonLevelForTesting(
     ? currentForm
     : unlockedForms[unlockedForms.length - 1] ?? chain[0];
 
-  const maxHp = calcDigimonMaxHp(clampedLevel, effectiveForm.id);
-  const maxDs = calcDigimonMaxDs(clampedLevel, effectiveForm.id);
+  const maxHp = calcDigimonMaxHp(clampedLevel, effectiveForm.id, qualityProfile.grade);
+  const maxDs = calcDigimonMaxDs(clampedLevel, effectiveForm.id, qualityProfile.grade);
   const newlyUnlockedForms =
     clampedLevel > prevLevel
       ? unlockedForms.filter(
@@ -593,9 +636,52 @@ export function setDigimonLevelForTesting(
       maxDs,
       activeFormId: effectiveForm.id,
       unlockedFormIds: unlockedForms.map((f) => f.id),
+      hatchGrade: qualityProfile.grade,
+      hatchSizePct: stats.hatchSizePct ?? qualityProfile.defaultSizePct,
     },
     newlyUnlockedForms,
     revertedForm: !validCurrent,
+  };
+}
+
+export function switchActiveDigimonForAdmin(
+  state: AccountHudPersistence,
+  targetFormId: DigimonFormId,
+  targetGrade?: HatchQualityGrade,
+  explicitLevel?: number
+): { next: AccountHudPersistence; form: DigimonFormProfile; grade: HatchQualityGrade } {
+  const form = getDigimonFormProfile(targetFormId);
+  const qualityProfile = getHatchQualityProfile(targetGrade ?? state.digimon.hatchGrade);
+  const nextLevel = Math.max(
+    1,
+    Math.min(99, Math.round(explicitLevel ?? Math.max(state.digimon.level, form.unlockLevel)))
+  );
+  const maxHp = calcDigimonMaxHp(nextLevel, form.id, qualityProfile.grade);
+  const maxDs = calcDigimonMaxDs(nextLevel, form.id, qualityProfile.grade);
+  const unlockedFormIds = getUnlockedEvolutionForms(form.starterId, nextLevel).map(
+    (f) => f.id
+  );
+
+  return {
+    next: {
+      ...state,
+      digimon: {
+        level: nextLevel,
+        exp: 0,
+        expToNext: calcDigimonExpToNext(nextLevel),
+        hp: maxHp,
+        maxHp,
+        ds: maxDs,
+        maxDs,
+        activeFormId: form.id,
+        unlockedFormIds,
+        hatchGrade: qualityProfile.grade,
+        hatchSizePct: qualityProfile.defaultSizePct,
+      },
+      updatedAt: new Date().toISOString(),
+    },
+    form,
+    grade: qualityProfile.grade,
   };
 }
 
@@ -610,11 +696,20 @@ export function applyQuickTestDigimonFormToHudState(
   const targetLevel = Math.max(1, formProfile.unlockLevel);
 
   const baseState = loadAccountHudState(cleanAccount, starterId);
+  const qualityProfile = getHatchQualityProfile(baseState.digimon.hatchGrade);
   const unlockedFormIds = getUnlockedEvolutionForms(starterId, targetLevel).map(
     (f) => f.id
   );
-  const digiMaxHp = calcDigimonMaxHp(targetLevel, formProfile.id);
-  const digiMaxDs = calcDigimonMaxDs(targetLevel, formProfile.id);
+  const digiMaxHp = calcDigimonMaxHp(
+    targetLevel,
+    formProfile.id,
+    qualityProfile.grade
+  );
+  const digiMaxDs = calcDigimonMaxDs(
+    targetLevel,
+    formProfile.id,
+    qualityProfile.grade
+  );
 
   const nextTamerBase: TamerRuntimeStats = {
     ...baseState.tamer,
@@ -647,6 +742,8 @@ export function applyQuickTestDigimonFormToHudState(
       maxDs: digiMaxDs,
       activeFormId: formProfile.id,
       unlockedFormIds,
+      hatchGrade: qualityProfile.grade,
+      hatchSizePct: baseState.digimon.hatchSizePct ?? qualityProfile.defaultSizePct,
     },
     updatedAt: new Date().toISOString(),
   };
@@ -667,13 +764,23 @@ export function addInventoryItem(
   current: InventoryItem[],
   item: Omit<InventoryItem, 'id'>
 ): { next: InventoryItem[]; added: boolean } {
-  // Stack consumables/others, keep distinct equip items as single slots unless same itemKey
-  const existingIdx = current.findIndex((i) => i.itemKey === item.itemKey);
+  const enriched = enrichInventoryItem({
+    ...item,
+    id: `inv_${item.itemKey}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+  });
+
+  const incomingEggLevel = enriched.eggData?.hatchLevel ?? 0;
+  // Stack items with matching itemKey (keeping reinforced eggs separate from base eggs)
+  const existingIdx = current.findIndex(
+    (i) =>
+      i.itemKey === enriched.itemKey &&
+      (i.eggData?.hatchLevel ?? 0) === incomingEggLevel
+  );
   if (existingIdx >= 0) {
     const updated = [...current];
     updated[existingIdx] = {
-      ...updated[existingIdx],
-      quantity: updated[existingIdx].quantity + item.quantity,
+      ...enrichInventoryItem(updated[existingIdx]),
+      quantity: updated[existingIdx].quantity + enriched.quantity,
     };
     return { next: updated, added: true };
   }
@@ -681,13 +788,7 @@ export function addInventoryItem(
     return { next: current, added: false };
   }
   return {
-    next: [
-      ...current,
-      {
-        ...item,
-        id: `inv_${item.itemKey}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      },
-    ],
+    next: [...current, enriched],
     added: true,
   };
 }
@@ -784,7 +885,7 @@ export function unequipSlotItem(
   if (!addRes.added) {
     return {
       next: state,
-      error: 'Inventário cheio (24/24). Libere espaço antes de remover.',
+      error: `Inventário cheio (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS}). Libere espaço antes de remover.`,
     };
   }
 

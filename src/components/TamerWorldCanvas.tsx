@@ -85,10 +85,18 @@ import {
   saveAdventureProgressForAccount,
 } from '../services/authService';
 import {
+  createInventoryPayloadFromCatalog,
+  getHatchQualityProfile,
+  listAllDataDefinitions,
+  listAllDigiEggDefinitions,
+} from '../data/itemsCatalog';
+import {
   addInventoryItem,
   applyExpToDigimon,
   applyExpToTamer,
   BASIC_BITS_SHOP_ITEMS,
+  calcDigimonMaxDs,
+  calcDigimonMaxHp,
   calcDmoKillExp,
   computeDerivedDigimonAttributes,
   computeTamerAttributes,
@@ -96,14 +104,21 @@ import {
   equipInventoryItem,
   evolveDigimonAccountState,
   getNextEvolutionInfo,
+  INVENTORY_MAX_SLOTS,
   loadAccountHudState,
   saveAccountHudState,
   setDigimonLevelForTesting,
   SKILL_F1_DS_COST,
   SKILL_F2_DS_COST,
+  switchActiveDigimonForAdmin,
   unequipSlotItem,
 } from '../services/hudGameService';
 import {
+  rollAndApplyDigimonDrops,
+  type RolledDropReward,
+} from '../services/dropService';
+import {
+  executeDataInjection,
   executeDigiEggHatch,
   executeEggReinforce,
 } from '../services/incubatorService';
@@ -162,6 +177,7 @@ import type {
   ChatMessage,
   ComputedDigimonAttributes,
   EquipmentSlotId,
+  HatchQualityGrade,
   HudNotificationItem,
   HudWindowId,
   InventoryItem,
@@ -176,6 +192,10 @@ import { BottomHudDock } from './hud/BottomHudDock';
 import { ChatHudPanel } from './hud/ChatHudPanel';
 import { DigimonClassificationBadges } from './hud/DigimonClassificationBadges';
 import { DigimonSwitcherList } from './hud/DigimonSwitcherList';
+import {
+  DropRewardToastStack,
+  type DropToastItem,
+} from './hud/DropRewardToast';
 import { EvolutionCinematicOverlay } from './hud/EvolutionCinematicOverlay';
 import { HudWindowsOverlay } from './hud/HudWindowsOverlay';
 import { InventoryHudWindow } from './hud/InventoryHudWindow';
@@ -202,6 +222,9 @@ interface TamerWorldCanvasProps {
   cloudIsGm?: boolean;
   onUpdatePreferences: (next: AppPreferences) => void;
   onOpenFeedback?: (screenContext?: string) => void;
+  onAdminSwitchStarter?: (starterId: StarterDigimonId) => void;
+  onAdminSwitchTamer?: (tamerId: TamerId) => void;
+  onOpenSelectionFlow?: (screen: 'character-select' | 'digimon-select') => void;
   onExitToLogin: () => void;
 }
 
@@ -416,6 +439,9 @@ export function TamerWorldCanvas({
   cloudIsGm = false,
   onUpdatePreferences,
   onOpenFeedback,
+  onAdminSwitchStarter,
+  onAdminSwitchTamer,
+  onOpenSelectionFlow,
   onExitToLogin,
 }: TamerWorldCanvasProps) {
   const soundEnabled = preferences.soundEnabled;
@@ -639,6 +665,29 @@ export function TamerWorldCanvas({
         ];
         return next.length > 60 ? next.slice(next.length - 60) : next;
       });
+    },
+    []
+  );
+
+  const [dropToasts, setDropToasts] = useState<DropToastItem[]>([]);
+
+  const pushDropRewardToasts = useCallback(
+    (rewards: readonly RolledDropReward[], sourceName?: string) => {
+      if (rewards.length === 0) return;
+      const created: DropToastItem[] = rewards.map((r, idx) => ({
+        id: `drop-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+        itemKey: r.itemKey,
+        name: r.name,
+        quantity: r.quantity,
+        iconUrl: r.iconUrl,
+        rarity: r.rarity,
+        sourceName,
+      }));
+      setDropToasts((prev) => [...created, ...prev].slice(0, 4));
+      const ids = new Set(created.map((c) => c.id));
+      window.setTimeout(() => {
+        setDropToasts((prev) => prev.filter((item) => !ids.has(item.id)));
+      }, 4200);
     },
     []
   );
@@ -1064,30 +1113,12 @@ export function TamerWorldCanvas({
             starterDigimon.digimonId
           );
 
-          let nextInventory = prevAcc.inventory;
-          const hpDrop = BASIC_BITS_SHOP_ITEMS[0];
-          const dsDrop = BASIC_BITS_SHOP_ITEMS[1];
-          const inv1 = addInventoryItem(nextInventory, {
-            itemKey: hpDrop.itemKey,
-            name: hpDrop.name,
-            category: hpDrop.category,
-            quantity: 1,
-            description: hpDrop.description,
-            hpRestore: hpDrop.hpRestore,
-            dsRestore: hpDrop.dsRestore,
-          });
-          if (inv1.added) nextInventory = inv1.next;
-
-          const inv2 = addInventoryItem(nextInventory, {
-            itemKey: dsDrop.itemKey,
-            name: dsDrop.name,
-            category: dsDrop.category,
-            quantity: 1,
-            description: dsDrop.description,
-            hpRestore: dsDrop.hpRestore,
-            dsRestore: dsDrop.dsRestore,
-          });
-          if (inv2.added) nextInventory = inv2.next;
+          const dropRes = rollAndApplyDigimonDrops(prevAcc.inventory, 'kuwagamon');
+          const nextInventory = dropRes.nextInventory;
+          const lootSummary =
+            dropRes.grantedDrops.length > 0
+              ? dropRes.grantedDrops.map((d) => `${d.name} x${d.quantity}`).join(', ')
+              : 'nenhum item adicional (inventário cheio)';
 
           commitHudAccount({
             ...prevAcc,
@@ -1098,6 +1129,10 @@ export function TamerWorldCanvas({
             defeatedEnemiesTotal: prevAcc.defeatedEnemiesTotal + 1,
             updatedAt: new Date().toISOString(),
           });
+
+          if (dropRes.grantedDrops.length > 0) {
+            pushDropRewardToasts(dropRes.grantedDrops, 'Kuwagamon (Boss Raid)');
+          }
 
           playDigitalTone('confirm', soundEnabled);
           sim.floatingTexts.push({
@@ -1111,12 +1146,12 @@ export function TamerWorldCanvas({
           });
           pushChatMessage(
             'system',
-            `Recompensa de Raid recebida: +${gainedDigimonExp} EXP (${formNow.name}), +${gainedTamerExp} EXP (Tamer), +${bitsDrop} Bits, ${hpDrop.name} e ${dsDrop.name}!`,
+            `Recompensa de Raid recebida: +${gainedDigimonExp} EXP (${formNow.name}), +${gainedTamerExp} EXP (Tamer), +${bitsDrop} Bits e drops: ${lootSummary}.`,
             { tone: 'loot' }
           );
           pushNotification(
             'Vitória na Raid Kuwagamon!',
-            `Você participou da derrota do Boss e ganhou +${gainedDigimonExp} EXP e +${bitsDrop} Bits.`
+            `Você participou da derrota do Boss e ganhou +${gainedDigimonExp} EXP, +${bitsDrop} Bits (${lootSummary}).`
           );
 
           if (tamerRes.leveledUp) {
@@ -1606,6 +1641,254 @@ export function TamerWorldCanvas({
       '[GM] HP, DS e tempos de recarga restaurados para 100%.',
       { tone: 'info' }
     );
+  }, [isGM, pushChatMessage, soundEnabled]);
+
+  const handleAdminPullAnyDigimon = useCallback(
+    (formId: DigimonFormId, grade: HatchQualityGrade) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      const switched = switchActiveDigimonForAdmin(prevAcc, formId, grade);
+      if (switched.form.starterId !== starterDigimon.digimonId) {
+        onAdminSwitchStarter?.(switched.form.starterId);
+      }
+      commitHudAccount(switched.next);
+      setEvolutionUnlockAlert(null);
+      simRef.current.partner.special1Cooldown = 0;
+      simRef.current.partner.special2Cooldown = 0;
+      simRef.current.evoFlashTimer = 1.05;
+      playDigitalTone('confirm', soundEnabled);
+      const qProf = getHatchQualityProfile(switched.grade);
+      pushChatMessage(
+        'system',
+        `[GM] Digimon alterado para ${switched.form.name} (${switched.form.stage} · Nv.${switched.next.digimon.level} · ${qProf.label} ${qProf.qualityName}).`,
+        { tone: 'level' }
+      );
+    },
+    [isGM, onAdminSwitchStarter, pushChatMessage, soundEnabled, starterDigimon.digimonId]
+  );
+
+  const handleAdminSetHatchGrade = useCallback(
+    (grade: HatchQualityGrade) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      const currentForm = resolveActiveFormProfile(
+        starterDigimon.digimonId,
+        prevAcc.digimon.activeFormId
+      );
+      const qProf = getHatchQualityProfile(grade);
+      const nextMaxHp = calcDigimonMaxHp(prevAcc.digimon.level, currentForm.id, qProf.grade);
+      const nextMaxDs = calcDigimonMaxDs(prevAcc.digimon.level, currentForm.id, qProf.grade);
+      commitHudAccount({
+        ...prevAcc,
+        digimon: {
+          ...prevAcc.digimon,
+          hatchGrade: qProf.grade,
+          hatchSizePct: qProf.defaultSizePct,
+          maxHp: nextMaxHp,
+          maxDs: nextMaxDs,
+          hp: nextMaxHp,
+          ds: nextMaxDs,
+        },
+        updatedAt: new Date().toISOString(),
+      });
+      playDigitalTone('confirm', soundEnabled);
+      pushChatMessage(
+        'system',
+        `[GM] Qualidade de ${currentForm.name} alterada para ${qProf.label} (${qProf.qualityName} · ${qProf.statMultiplier.toFixed(2)}×).`,
+        { tone: 'info' }
+      );
+    },
+    [isGM, pushChatMessage, soundEnabled, starterDigimon.digimonId]
+  );
+
+  const handleAdminGrantItem = useCallback(
+    (itemKey: string, quantity: number, eggHatchLevel?: number) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      let payload = createInventoryPayloadFromCatalog(itemKey, quantity);
+      if (!payload) {
+        const shopTpl = BASIC_BITS_SHOP_ITEMS.find((b) => b.itemKey === itemKey);
+        if (!shopTpl) return;
+        payload = {
+          itemKey: shopTpl.itemKey,
+          name: shopTpl.name,
+          category: shopTpl.category,
+          quantity: Math.max(1, Math.round(quantity)),
+          description: shopTpl.description,
+          hpRestore: shopTpl.hpRestore,
+          dsRestore: shopTpl.dsRestore,
+          equipSlot: shopTpl.equipSlot,
+          statBonuses: shopTpl.statBonuses,
+        };
+      } else if (payload.eggData && eggHatchLevel !== undefined) {
+        payload = {
+          ...payload,
+          eggData: {
+            ...payload.eggData,
+            hatchLevel: Math.max(0, Math.min(5, eggHatchLevel)),
+          },
+        };
+      }
+
+      const addRes = addInventoryItem(prevAcc.inventory, payload);
+      if (!addRes.added) {
+        playDigitalTone('error', soundEnabled);
+        pushChatMessage(
+          'system',
+          `[GM] Mochila cheia (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS} slots). Esvazie alguns itens para continuar.`,
+          { tone: 'warning' }
+        );
+        return;
+      }
+
+      commitHudAccount({
+        ...prevAcc,
+        inventory: addRes.next,
+        updatedAt: new Date().toISOString(),
+      });
+      playDigitalTone('confirm', soundEnabled);
+      pushDropRewardToasts(
+        [
+          {
+            itemKey: payload.itemKey,
+            name: payload.eggData
+              ? `${payload.name} (${payload.eggData.hatchLevel}/5)`
+              : payload.name,
+            category: payload.category,
+            quantity: payload.quantity,
+            iconUrl: payload.iconUrl,
+            rarity: payload.rarity ?? 'comum',
+            payload,
+          },
+        ],
+        'Painel GM'
+      );
+      pushChatMessage(
+        'system',
+        `[GM] Puxou ${payload.quantity}× ${payload.name}${
+          payload.eggData ? ` (${payload.eggData.hatchLevel}/5)` : ''
+        }.`,
+        { tone: 'loot' }
+      );
+    },
+    [isGM, pushChatMessage, pushDropRewardToasts, soundEnabled]
+  );
+
+  const handleAdminGrantAllDatas = useCallback(
+    (quantityEach: number) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      let inv = prevAcc.inventory;
+      let addedCount = 0;
+      for (const def of listAllDataDefinitions()) {
+        const payload = createInventoryPayloadFromCatalog(def.itemKey, quantityEach);
+        if (!payload) continue;
+        const res = addInventoryItem(inv, payload);
+        if (res.added) {
+          inv = res.next;
+          addedCount += 1;
+        }
+      }
+      if (addedCount === 0) {
+        playDigitalTone('error', soundEnabled);
+        pushChatMessage(
+          'system',
+          `[GM] Mochila cheia (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS} slots).`,
+          { tone: 'warning' }
+        );
+        return;
+      }
+      commitHudAccount({
+        ...prevAcc,
+        inventory: inv,
+        updatedAt: new Date().toISOString(),
+      });
+      playDigitalTone('confirm', soundEnabled);
+      pushChatMessage(
+        'system',
+        `[GM] Adicionou +${quantityEach} de ${addedCount} tipos de DATA à mochila.`,
+        { tone: 'loot' }
+      );
+    },
+    [isGM, pushChatMessage, soundEnabled]
+  );
+
+  const handleAdminGrantAllEggs = useCallback(
+    (eggHatchLevel: number) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      let inv = prevAcc.inventory;
+      let addedCount = 0;
+      const clampedLv = Math.max(0, Math.min(5, eggHatchLevel));
+      for (const def of listAllDigiEggDefinitions()) {
+        const payload = createInventoryPayloadFromCatalog(def.itemKey, 1);
+        if (!payload || !payload.eggData) continue;
+        const res = addInventoryItem(inv, {
+          ...payload,
+          eggData: { ...payload.eggData, hatchLevel: clampedLv },
+        });
+        if (res.added) {
+          inv = res.next;
+          addedCount += 1;
+        }
+      }
+      if (addedCount === 0) {
+        playDigitalTone('error', soundEnabled);
+        pushChatMessage(
+          'system',
+          `[GM] Mochila cheia (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS} slots).`,
+          { tone: 'warning' }
+        );
+        return;
+      }
+      commitHudAccount({
+        ...prevAcc,
+        inventory: inv,
+        updatedAt: new Date().toISOString(),
+      });
+      playDigitalTone('confirm', soundEnabled);
+      pushChatMessage(
+        'system',
+        `[GM] Adicionou ${addedCount} DigiEggs (${clampedLv}/5) à mochila.`,
+        { tone: 'loot' }
+      );
+    },
+    [isGM, pushChatMessage, soundEnabled]
+  );
+
+  const handleAdminGrantCurrency = useCallback(
+    (bitsDelta: number, dCoinDelta: number) => {
+      if (!isGM) return;
+      const prevAcc = hudAccountRef.current;
+      commitHudAccount({
+        ...prevAcc,
+        bits: Math.max(0, prevAcc.bits + bitsDelta),
+        dCoin: Math.max(0, prevAcc.dCoin + dCoinDelta),
+        updatedAt: new Date().toISOString(),
+      });
+      playDigitalTone('confirm', soundEnabled);
+      const parts: string[] = [];
+      if (bitsDelta > 0) parts.push(`+${bitsDelta.toLocaleString('pt-BR')} Bits`);
+      if (dCoinDelta > 0) parts.push(`+${dCoinDelta.toLocaleString('pt-BR')} D-Coin`);
+      pushChatMessage('system', `[GM] Creditado: ${parts.join(' · ')}.`, {
+        tone: 'loot',
+      });
+    },
+    [isGM, pushChatMessage, soundEnabled]
+  );
+
+  const handleAdminClearInventory = useCallback(() => {
+    if (!isGM) return;
+    const prevAcc = hudAccountRef.current;
+    commitHudAccount({
+      ...prevAcc,
+      inventory: [],
+      updatedAt: new Date().toISOString(),
+    });
+    playDigitalTone('click', soundEnabled);
+    pushChatMessage('system', '[GM] Mochila esvaziada para testes.', {
+      tone: 'info',
+    });
   }, [isGM, pushChatMessage, soundEnabled]);
 
   useEffect(() => {
@@ -2388,37 +2671,25 @@ export function TamerWorldCanvas({
               starterDigimon.digimonId
             );
 
-            let nextInventory = prevAcc.inventory;
-            let droppedItemName: string | null = null;
-            const roll = Math.random();
-            if (roll < 0.26) {
-              const dropTpl =
-                roll < 0.14 ? BASIC_BITS_SHOP_ITEMS[0] : BASIC_BITS_SHOP_ITEMS[1];
-              const invRes = addInventoryItem(nextInventory, {
-                itemKey: dropTpl.itemKey,
-                name: dropTpl.name,
-                category: dropTpl.category,
-                quantity: 1,
-                description: dropTpl.description,
-                hpRestore: dropTpl.hpRestore,
-                dsRestore: dropTpl.dsRestore,
-              });
-              if (invRes.added) {
-                nextInventory = invRes.next;
-                droppedItemName = dropTpl.name;
-              }
-            }
+            const dropRes = rollAndApplyDigimonDrops(
+              prevAcc.inventory,
+              enemy.species
+            );
 
             const nextAcc: AccountHudPersistence = {
               ...prevAcc,
               tamer: tamerRes.next,
               digimon: digiRes.next,
               bits: prevAcc.bits + bitsDrop,
-              inventory: nextInventory,
+              inventory: dropRes.nextInventory,
               defeatedEnemiesTotal: prevAcc.defeatedEnemiesTotal + 1,
               updatedAt: new Date().toISOString(),
             };
             commitHudAccount(nextAcc);
+
+            if (dropRes.grantedDrops.length > 0) {
+              pushDropRewardToasts(dropRes.grantedDrops, enemy.name);
+            }
 
             sim.floatingTexts.push({
               id: sim.nextFxId++,
@@ -2435,11 +2706,18 @@ export function TamerWorldCanvas({
               `${enemy.name} derrotado! +${gainedDigimonExp} EXP (${formNow.name}) e +${bitsDrop} Bits.`,
               { tone: 'loot' }
             );
-            if (droppedItemName) {
+            for (const reward of dropRes.grantedDrops) {
               pushChatMessage(
                 'system',
-                `Item obtido: ${droppedItemName} (armazenado no Inventário).`,
+                `Item obtido: ${reward.name} x${reward.quantity} (armazenado no Inventário).`,
                 { tone: 'loot' }
+              );
+            }
+            if (dropRes.skippedFullDrops.length > 0) {
+              pushChatMessage(
+                'system',
+                `Inventário cheio! Não foi possível guardar: ${dropRes.skippedFullDrops.map((d) => d.name).join(', ')}.`,
+                { tone: 'warning' }
               );
             }
             if (tamerRes.leveledUp) {
@@ -3636,9 +3914,13 @@ export function TamerWorldCanvas({
 
     if (!res.added) {
       playDigitalTone('error', soundEnabled);
-      pushChatMessage('system', 'Inventário cheio (24/24 slots).', {
-        tone: 'warning',
-      });
+      pushChatMessage(
+        'system',
+        `Inventário cheio (${INVENTORY_MAX_SLOTS}/${INVENTORY_MAX_SLOTS} slots).`,
+        {
+          tone: 'warning',
+        }
+      );
       return;
     }
 
@@ -3651,6 +3933,36 @@ export function TamerWorldCanvas({
     pushChatMessage('system', `Comprou ${tpl.name} por ${tpl.priceBits} Bits.`, {
       tone: 'loot',
     });
+  }
+
+  function handleExecuteDataInject(eggItemId: string) {
+    const res = executeDataInjection(hudAccountRef.current, eggItemId);
+    if (!res.ok) {
+      playDigitalTone('error', soundEnabled);
+      return {
+        ok: false,
+        outcome: res.outcome,
+        message: res.message,
+      };
+    }
+    commitHudAccount(res.next);
+    if (res.outcome === 'success') {
+      playDigitalTone('confirm', soundEnabled);
+      pushChatMessage('system', res.message, { tone: 'loot' });
+    } else if (res.outcome === 'broken') {
+      playDigitalTone('error', soundEnabled);
+      pushChatMessage('system', res.message, { tone: 'warning' });
+    } else {
+      playDigitalTone('error', soundEnabled);
+    }
+    return {
+      ok: true,
+      outcome: res.outcome,
+      message: res.message,
+      newLevel: res.newLevel,
+      brokeEgg: res.brokeEgg,
+      updatedEggId: res.updatedEggId,
+    };
   }
 
   function handleExecuteEggHatch(eggItemId: string) {
@@ -3667,6 +3979,7 @@ export function TamerWorldCanvas({
       ok: true,
       message: res.message,
       hatchedSpecies: res.hatchedSpecies,
+      hatchedGrade: res.hatchedGrade,
     };
   }
 
@@ -3690,6 +4003,7 @@ export function TamerWorldCanvas({
       ok: true,
       message: res.message,
       newReinforceLevel: res.newReinforceLevel,
+      updatedEggId: res.updatedEggId,
     };
   }
 
@@ -3995,6 +4309,9 @@ export function TamerWorldCanvas({
         </div>
       )}
 
+      {/* Visual Item Drop Reward Toasts (DATA, DigiEggs, Consumables) */}
+      <DropRewardToastStack toasts={dropToasts} />
+
       {/* Right-Side DMO Inventory Window (opens cleanly above Bottom-Right MENU button) */}
       {inventoryOpen && (
         <div className="pointer-events-none absolute bottom-[64px] right-2 z-30 sm:bottom-[72px] sm:right-4">
@@ -4268,11 +4585,21 @@ export function TamerWorldCanvas({
         onUnequipSlot={handleUnequipSlot}
         onBuyShopItem={handleBuyShopItem}
         onEvolveDigimon={handleTriggerEvolution}
+        onExecuteDataInject={handleExecuteDataInject}
         onExecuteEggHatch={handleExecuteEggHatch}
         onExecuteEggReinforce={handleExecuteEggReinforce}
         onPlayTone={(tone) => playDigitalTone(tone, soundEnabled)}
         onAdminSetDigimonLevel={handleAdminSetDigimonLevel}
         onAdminAddDigimonExp={handleAdminAddDigimonExp}
+        onAdminPullAnyDigimon={handleAdminPullAnyDigimon}
+        onAdminSetHatchGrade={handleAdminSetHatchGrade}
+        onAdminGrantItem={handleAdminGrantItem}
+        onAdminGrantAllDatas={handleAdminGrantAllDatas}
+        onAdminGrantAllEggs={handleAdminGrantAllEggs}
+        onAdminGrantCurrency={handleAdminGrantCurrency}
+        onAdminClearInventory={handleAdminClearInventory}
+        onAdminSwitchTamer={onAdminSwitchTamer}
+        onOpenSelectionFlow={onOpenSelectionFlow}
         onAdminRestoreVitals={handleAdminRestoreVitals}
         onTravelToMap={travelToMap}
         isGM={isGM}

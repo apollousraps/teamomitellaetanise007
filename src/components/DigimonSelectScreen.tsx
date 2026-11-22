@@ -249,10 +249,10 @@ function AnimatedDigimonCanvas({
 
   const sizeClass =
     size === 'hero'
-      ? 'h-[215px] w-[258px] sm:h-[250px] sm:w-[300px]'
+      ? 'h-[175px] w-[218px] sm:h-[250px] sm:w-[300px]'
       : size === 'modal'
-        ? 'h-[168px] w-[190px]'
-        : 'h-[82px] w-[96px] sm:h-[98px] sm:w-[116px]';
+        ? 'h-[156px] w-[180px]'
+        : 'h-[72px] w-[82px] sm:h-[98px] sm:w-[116px]';
 
   return (
     <div className={`relative flex items-center justify-center ${sizeClass}`}>
@@ -502,7 +502,7 @@ export function DigimonSelectScreen({
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-cyan-400/35 bg-[#082154]/90 px-3 text-xs font-extrabold tracking-wide text-cyan-100 transition-colors hover:border-cyan-300 hover:bg-[#0d3075] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
           >
             <ChevronLeft className="h-4 w-4 text-cyan-300" />
-            <span>Sair</span>
+            <span>Voltar</span>
           </button>
 
           <div className="flex min-w-0 flex-col items-center text-center">
@@ -541,12 +541,12 @@ export function DigimonSelectScreen({
       </header>
 
       {/* Main Content Container */}
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3.5 px-3 py-3 sm:px-5 sm:py-4">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3 px-3 py-3 pb-6 sm:gap-3.5 sm:px-5 sm:py-4">
         {/* Top Strip: 3 Animated Starter Digimon Cards */}
         <div
           role="radiogroup"
           aria-label="Digimons iniciais disponíveis"
-          className="grid grid-cols-3 gap-2 sm:gap-3"
+          className="grid grid-cols-3 gap-1.5 sm:gap-3"
         >
           {STARTER_DIGIMONS.map((starter) => {
             const isSelected = starter.id === selectedId;
@@ -667,7 +667,7 @@ export function DigimonSelectScreen({
                         prev === 'walk' ? 'idle' : 'walk'
                       );
                     }}
-                    className={`inline-flex min-h-[34px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
+                    className={`inline-flex min-h-[42px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
                       movementState === 'walk'
                         ? 'border-cyan-300/80 bg-cyan-500/20 text-cyan-100'
                         : 'border-white/15 bg-white/5 text-sky-200 hover:bg-white/10'
@@ -691,7 +691,7 @@ export function DigimonSelectScreen({
                     }}
                     aria-pressed={autoRotate}
                     title="Girar automaticamente"
-                    className={`inline-flex min-h-[34px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
+                    className={`inline-flex min-h-[42px] items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition-colors ${
                       autoRotate
                         ? 'border-amber-300/80 bg-amber-400/20 text-amber-100'
                         : 'border-white/15 bg-white/5 text-sky-200 hover:bg-white/10'
@@ -735,7 +735,7 @@ export function DigimonSelectScreen({
                         setAutoRotate(false);
                         setDirection(opt.dir);
                       }}
-                      className={`min-h-[36px] rounded-lg border text-[11px] font-bold transition-colors ${
+                      className={`min-h-[42px] rounded-lg border text-[11px] font-bold transition-colors ${
                         isActive
                           ? 'border-cyan-300 bg-cyan-500/25 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
                           : 'border-white/10 bg-[#051538]/80 text-sky-200/80 hover:border-cyan-400/40 hover:text-white'
@@ -1176,10 +1176,12 @@ export function DigimonSelectScreen({
               <button
                 type="button"
                 onClick={handleOpenModal}
-                className="clip-cyber-btn flex min-h-[54px] w-full items-center justify-center gap-2 border-2 border-cyan-200/85 bg-gradient-to-r from-[#0284c7] via-[#0ea5e9] to-[#0284c7] px-6 py-3 font-[family-name:var(--font-display)] text-sm tracking-wider text-white shadow-[0_0_26px_rgba(14,165,233,0.7)] transition-transform duration-150 hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-base"
+                className="clip-cyber-btn flex min-h-[54px] w-full items-center justify-center gap-2 border-2 border-cyan-200/85 bg-gradient-to-r from-[#0284c7] via-[#0ea5e9] to-[#0284c7] px-4 py-3 font-[family-name:var(--font-display)] text-[13px] tracking-wider text-white shadow-[0_0_26px_rgba(14,165,233,0.7)] transition-transform duration-150 hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:px-6 sm:text-base"
               >
                 <Sparkles className="h-4 w-4 shrink-0 text-amber-200" />
-                <span>CONFIRMAR {selectedDigimon.name} COMO PARCEIRO</span>
+                <span className="whitespace-nowrap">
+                  CONFIRMAR {selectedDigimon.name.toUpperCase()}
+                </span>
               </button>
 
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-sky-200/80">
@@ -1200,11 +1202,11 @@ export function DigimonSelectScreen({
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-partner-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/85 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#020817]/85 p-3 backdrop-blur-sm sm:p-4"
         >
           <div
             style={{ borderColor: selectedDigimon.theme.accentHex }}
-            className="w-full max-w-[400px] rounded-3xl border-2 bg-gradient-to-b from-[#071c4a] via-[#051436] to-[#030b20] p-5 text-center shadow-[0_0_45px_rgba(0,180,255,0.45)]"
+            className="max-h-[92dvh] w-full max-w-[400px] overflow-y-auto rounded-3xl border-2 bg-gradient-to-b from-[#071c4a] via-[#051436] to-[#030b20] p-4 text-center shadow-[0_0_45px_rgba(0,180,255,0.45)] sm:p-5"
           >
             <div className="mx-auto flex items-center justify-center">
               <AnimatedDigimonCanvas

@@ -2,7 +2,33 @@ import type { DigimonClassification } from './classification';
 import type { DigimonFormId, PartnerAIState, PartnerAttackKind } from './digimon';
 import type { CardinalDirection, TamerMovementState } from '../sprites/tamerRealSheets';
 
-export type InventoryCategory = 'all' | 'equip' | 'consumable' | 'other';
+export type InventoryCategory =
+  | 'all'
+  | 'data'
+  | 'digiegg'
+  | 'other'
+  | 'consumable'
+  | 'equip';
+
+export type DataElementType =
+  | 'dragon'
+  | 'fire'
+  | 'bird'
+  | 'plant'
+  | 'rock'
+  | 'insect'
+  | 'aquatic'
+  | 'devil'
+  | 'beast';
+
+export type ItemRarity =
+  | 'comum'
+  | 'incomum'
+  | 'raro'
+  | 'epico'
+  | 'lendario';
+
+export type HatchQualityGrade = 3 | 4 | 5;
 
 export type EquipmentSlotId =
   | 'head'
@@ -30,10 +56,14 @@ export interface EquipmentStatBonuses {
 export interface DigiEggItemMetadata {
   speciesName: string;
   rarity: string;
+  dataType?: DataElementType;
+  requiredDataKey?: string;
+  requiredDataQuantity?: number;
   hatchLevel?: number;
   maxHatchLevel?: number;
   hatchedFormId?: DigimonFormId;
   accentColor?: string;
+  usageRequirements?: string;
   requiredMaterials?: Array<{
     itemKey: string;
     name: string;
@@ -54,6 +84,10 @@ export interface InventoryItem {
   category: Exclude<InventoryCategory, 'all'>;
   quantity: number;
   description: string;
+  iconUrl?: string;
+  rarity?: ItemRarity;
+  dataType?: DataElementType;
+  usageInfo?: string;
   hpRestore?: number;
   dsRestore?: number;
   equipSlot?: EquipmentSlotId;
@@ -116,6 +150,8 @@ export interface DigimonRuntimeStats {
   maxDs: number;
   activeFormId?: DigimonFormId;
   unlockedFormIds?: DigimonFormId[];
+  hatchGrade?: HatchQualityGrade;
+  hatchSizePct?: number;
 }
 
 export interface ComputedDigimonAttributes {
